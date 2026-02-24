@@ -1,30 +1,53 @@
-using System.Xml.Linq;
-using UnityEngine;
+﻿using UnityEngine;
 
 public class Player : Character
 {
-    public Player(string name, float speed)
+    private Rigidbody2D rb;
+    private Animator animator;
+
+    private float moveInput;
+
+    private void Awake()
     {
-        Name = name;
-        Speed = speed;
-        Health = 100;
+        rb = GetComponent<Rigidbody2D>();
+        animator = GetComponent<Animator>();
+
+        Name = "Player";
+        Health = 100f;
+        Speed = 5f;
     }
 
-    // Start is called once before the first execution of Update after the MonoBehaviour is created
-    void Start()
+    private void Update()
     {
-        
-    }
-
-    // Update is called once per frame
-    void Update()
-    {
-        
+        Move();
+        HandleAnimation();
+        Flip();
     }
 
     public override void Move()
-    { 
-    
+    {
+        moveInput = Input.GetAxis("Horizontal");
+
+        rb.linearVelocity = new Vector2(
+            moveInput * Speed,
+            rb.linearVelocity.y
+        );
     }
 
+    void HandleAnimation()
+    {
+        animator.SetFloat("Speed", Mathf.Abs(moveInput));
+    }
+
+    void Flip()
+    {
+        Vector3 scale = transform.localScale;
+
+        if (moveInput > 0)
+            scale.x = -Mathf.Abs(scale.x);
+        else if (moveInput < 0)
+            scale.x = Mathf.Abs(scale.x);
+
+        transform.localScale = scale;
+    }
 }
