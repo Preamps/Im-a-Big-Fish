@@ -12,6 +12,7 @@ GameObject:
   - component: {fileID: 6308944485352149554}
   - component: {fileID: 3393207095065617913}
   - component: {fileID: 5823551278919112834}
+  - component: {fileID: -2498173359996685695}
   - component: {fileID: 3940149274961635351}
   - component: {fileID: 8201609035112708476}
   - component: {fileID: 7145141332279206157}
@@ -85,7 +86,7 @@ SpriteRenderer:
   m_GlobalIlluminationMeshLod: 0
   m_SortingLayerID: 0
   m_SortingLayer: 0
-  m_SortingOrder: 0
+  m_SortingOrder: 5
   m_MaskInteraction: 0
   m_Sprite: {fileID: 21300000, guid: cc0822ba7997e7541a0a5a4f7db4942f, type: 3}
   m_Color: {r: 1, g: 1, b: 1, a: 1}
@@ -168,6 +169,30 @@ MonoBehaviour:
   SwitchTransformSpaceWhenParented: 0
   Interpolate: 1
   SlerpPosition: 0
+--- !u!114 &-2498173359996685695
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 2204090034340559749}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: e8d0727d5ae3244e3b569694d3912374, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Unity.Netcode.Runtime::Unity.Netcode.Components.NetworkAnimator
+  ShowTopMostFoldoutHeaderGroup: 1
+  NetworkAnimatorExpanded: 0
+  AuthorityMode: 1
+  m_Animator: {fileID: 7145141332279206157}
+  TransitionStateInfoList: []
+  AnimatorParameterEntries:
+    ParameterEntries:
+    - name: Speed
+      NameHash: -823668238
+      Synchronize: 1
+      ParameterType: 1
+  AnimatorParametersExpanded: 0
 --- !u!50 &3940149274961635351
 Rigidbody2D:
   serializedVersion: 5
@@ -207,6 +232,9 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: ef80129a47938954aab4416f865c142e, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::Player
+  ShowTopMostFoldoutHeaderGroup: 1
+  Health:
+    m_InternalValue: 0
 --- !u!95 &7145141332279206157
 Animator:
   serializedVersion: 7

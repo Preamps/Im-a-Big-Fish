@@ -1,4 +1,5 @@
 ﻿using UnityEngine;
+using Unity.Netcode;
 
 public class Player : Character
 {
@@ -7,45 +8,80 @@ public class Player : Character
 
     private float moveInput;
 
+    // ⭐ sync movement ให้ทุก client
+    private NetworkVariable<float> netMoveInput =
+        new NetworkVariable<float>(0f,
+        NetworkVariableReadPermission.Everyone,
+        NetworkVariableWritePermission.Owner);
+
     private void Awake()
     {
         rb = GetComponent<Rigidbody2D>();
         animator = GetComponent<Animator>();
 
-        Name = "Player";
-        Health = 100f;
         Speed = 5f;
     }
 
     private void Update()
     {
-        Move();
+        // Owner อ่าน input เท่านั้น
+        if (IsOwner)
+        {
+            HandleInput();
+        }
+
+        // ทุกเครื่องเล่น animation
         HandleAnimation();
         Flip();
     }
 
+    public override void OnNetworkSpawn()
+    {
+        if (!IsOwner) return;
+
+        Camera.main
+            .GetComponent<CameraFollow>()
+            .target = transform;
+    }
+
+    private void FixedUpdate()
+    {
+        if (!IsOwner) return;
+
+        Move();
+    }
+
     public override void Move()
     {
-        moveInput = Input.GetAxis("Horizontal");
-
         rb.linearVelocity = new Vector2(
             moveInput * Speed,
             rb.linearVelocity.y
         );
     }
 
+    void HandleInput()
+    {
+        moveInput = Input.GetAxis("Horizontal");
+
+        // ⭐ ส่งค่าไป network
+        netMoveInput.Value = moveInput;
+    }
+
     void HandleAnimation()
     {
-        animator.SetFloat("Speed", Mathf.Abs(moveInput));
+        float speed = Mathf.Abs(netMoveInput.Value);
+        animator.SetFloat("Speed", speed);
     }
 
     void Flip()
     {
         Vector3 scale = transform.localScale;
 
-        if (moveInput > 0)
+        float dir = netMoveInput.Value;
+
+        if (dir > 0)
             scale.x = -Mathf.Abs(scale.x);
-        else if (moveInput < 0)
+        else if (dir < 0)
             scale.x = Mathf.Abs(scale.x);
 
         transform.localScale = scale;

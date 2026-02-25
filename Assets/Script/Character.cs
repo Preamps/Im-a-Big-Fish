@@ -1,13 +1,12 @@
 using UnityEngine;
+using Unity.Netcode;
 
-public abstract class Character : MonoBehaviour
+public abstract class Character : NetworkBehaviour
 {
-    public string Name { get; set; }
-    public float Health { get; set; }
-    public float Speed { get; set; }
-    public float X { get; set; }
-    public float Y { get; set; }
+    public NetworkVariable<float> Health =
+        new NetworkVariable<float>();
 
-    public abstract void Move(); // ให้ลูกๆ ไปเขียนวิธีเดินเอาเอง
-    
+    public float Speed { get; protected set; }
+
+    public abstract void Move();
 }
