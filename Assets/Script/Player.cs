@@ -35,6 +35,14 @@ public class Player : Character
         Flip();
     }
 
+    private void FixedUpdate()
+    {
+        if (!IsOwner) return;
+
+        Move();
+    }
+
+
     public override void OnNetworkSpawn()
     {
         if (!IsOwner) return;
@@ -44,12 +52,6 @@ public class Player : Character
             .target = transform;
     }
 
-    private void FixedUpdate()
-    {
-        if (!IsOwner) return;
-
-        Move();
-    }
 
     public override void Move()
     {
