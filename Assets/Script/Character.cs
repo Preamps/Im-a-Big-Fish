@@ -1,13 +1,32 @@
-using UnityEngine;
+﻿using UnityEngine;
+using Unity.Netcode;
 
-public abstract class Character : MonoBehaviour
+public abstract class Character : NetworkBehaviour
 {
-    public string Name { get; set; }
-    public float Health { get; set; }
-    public float Speed { get; set; }
-    public float X { get; set; }
-    public float Y { get; set; }
+    public NetworkVariable<float> Health =
+        new NetworkVariable<float>(100f);
 
-    public abstract void Move(); // ให้ลูกๆ ไปเขียนวิธีเดินเอาเอง
-    
+    public float Speed { get; protected set; }
+
+    public abstract void Move();
+
+    public virtual void TakeDamage(float dmg)
+    {
+        if (!IsServer) return;
+
+        Health.Value -= dmg;
+
+        if (Health.Value <= 0)
+        {
+            Die();
+        }
+    }
+
+    void Die()
+    {
+        Debug.Log($"{OwnerClientId} died");
+
+        // ตัวอย่างง่ายๆ
+        GetComponent<NetworkObject>().Despawn();
+    }
 }
