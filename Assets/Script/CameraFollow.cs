@@ -8,6 +8,13 @@ public class CameraFollow : MonoBehaviour
 
     private Vector3 velocity = Vector3.zero;
 
+    public static CameraFollow Instance;
+
+    void Start()
+    {
+        Instance = this;
+    }
+
     void LateUpdate()
     {
         if (target == null) return;

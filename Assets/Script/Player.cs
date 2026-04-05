@@ -47,9 +47,10 @@ public class Player : Character
     {
         if (!IsOwner) return;
 
-        Camera.main
-            .GetComponent<CameraFollow>()
-            .target = transform;
+        if (CameraFollow.Instance != null)
+        {
+            CameraFollow.Instance.target = transform;
+        }
     }
 
 
@@ -88,4 +89,5 @@ public class Player : Character
 
         transform.localScale = scale;
     }
+
 }
