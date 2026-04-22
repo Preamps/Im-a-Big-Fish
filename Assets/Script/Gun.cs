@@ -8,13 +8,16 @@ public class Gun : NetworkBehaviour
     public Transform pivot;
     public GameObject bulletPrefab;
     public float bulletSpeed = 20f;
+    public float bulletDamage = 20f;
     public float fireRate = 6f;
     public bool holdToFire = true;
     public HandAim handAim;
     public float recoilAmount = 1f;
+    [SerializeField] private int maxActiveBulletsPerShooter = 32;
 
     private float nextShootTime;
     private readonly Dictionary<ulong, float> serverNextShootTime = new Dictionary<ulong, float>();
+    private readonly Dictionary<ulong, Queue<NetworkObject>> serverActiveBullets = new Dictionary<ulong, Queue<NetworkObject>>();
 
     void ResolveHandAim()
     {
@@ -101,11 +104,11 @@ public class Gun : NetworkBehaviour
         ulong rttMs = NetworkManager.Singleton.NetworkConfig.NetworkTransport.GetCurrentRtt(senderClientId);
         float oneWaySeconds = (rttMs * 0.5f) / 1000f;
 
-        // Prevent overly large forward spawn offsets on temporary lag spikes.
-        return Mathf.Clamp(oneWaySeconds, 0f, 0.15f);
+        // Keep compensation very small to avoid visible over-leading on clients.
+        return Mathf.Clamp(oneWaySeconds, 0f, 0.03f);
     }
 
-    [ServerRpc]
+    [ServerRpc(Delivery = RpcDelivery.Unreliable)]
     void ShootServerRpc(Vector2 pos, Vector2 dir, float recoilJitter, ServerRpcParams rpcParams = default)
     {
         ulong senderClientId = rpcParams.Receive.SenderClientId;
@@ -126,7 +129,10 @@ public class Gun : NetworkBehaviour
         Bullet bulletComponent = bullet.GetComponent<Bullet>();
         if (bulletComponent != null)
         {
+            bulletComponent.SetServerSpawnPosition(compensatedPos);
             bulletComponent.SetServerDirection(safeDir);
+            bulletComponent.SetServerSpeed(bulletSpeed);
+            bulletComponent.ConfigureServerDamage(bulletDamage, senderClientId);
         }
 
         NetworkObject netObj = bullet.GetComponent<NetworkObject>();
@@ -142,9 +148,11 @@ public class Gun : NetworkBehaviour
         {
             rb.linearVelocity = safeDir * bulletSpeed;
         }
+
+        RegisterAndTrimShooterBullets(senderClientId, netObj);
     }
 
-    [ClientRpc]
+    [ClientRpc(Delivery = RpcDelivery.Unreliable)]
     void PlayRecoilClientRpc(float amount, float recoilJitter)
     {
         if (IsOwner) return;
@@ -153,6 +161,41 @@ public class Gun : NetworkBehaviour
         if (handAim != null)
         {
             handAim.AddRecoilWithJitter(amount, recoilJitter);
+        }
+    }
+
+    private void RegisterAndTrimShooterBullets(ulong shooterClientId, NetworkObject bulletObject)
+    {
+        int cap = Mathf.Max(1, maxActiveBulletsPerShooter);
+
+        if (!serverActiveBullets.TryGetValue(shooterClientId, out Queue<NetworkObject> queue))
+        {
+            queue = new Queue<NetworkObject>(cap);
+            serverActiveBullets[shooterClientId] = queue;
+        }
+
+        // Drop stale references first.
+        int staleGuard = queue.Count;
+        for (int i = 0; i < staleGuard; i++)
+        {
+            NetworkObject head = queue.Peek();
+            if (head != null && head.IsSpawned)
+            {
+                break;
+            }
+
+            queue.Dequeue();
+        }
+
+        queue.Enqueue(bulletObject);
+
+        while (queue.Count > cap)
+        {
+            NetworkObject oldest = queue.Dequeue();
+            if (oldest != null && oldest.IsSpawned)
+            {
+                oldest.Despawn(true);
+            }
         }
     }
 }
