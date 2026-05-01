@@ -51,6 +51,7 @@ MonoBehaviour:
   pivot: {fileID: 6801307680969294267}
   bulletPrefab: {fileID: 969277354531038930, guid: 16d07e6748a790348b4a6a863f489715, type: 3}
   bulletSpeed: 25
+  bulletDamage: 20
   fireRate: 6
   holdToFire: 0
   handAim: {fileID: 3641096547895977303}
@@ -226,7 +227,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: d5a57f767e5e46a458fc5d3c628d0cbb, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Unity.Netcode.Runtime::Unity.Netcode.NetworkObject
-  GlobalObjectIdHash: 2247211414
+  GlobalObjectIdHash: 4049071944
   InScenePlacedSourceGlobalObjectIdHash: 0
   DeferredDespawnTick: 0
   Ownership: 1
@@ -349,6 +350,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::Player
   ShowTopMostFoldoutHeaderGroup: 1
+  maxHealth: 100
   Health:
     m_InternalValue: 0
 --- !u!95 &7145141332279206157

@@ -10,12 +10,17 @@ public class Enemy : Character
     [SerializeField] private float retargetInterval = 0.5f;
     [SerializeField] private float acceleration = 25f;
     [SerializeField] private float deceleration = 30f;
-    [SerializeField] private float networkSmoothTime = 0.08f;
+    [SerializeField] private float networkSmoothTime = 0.06f;
+    [SerializeField] private float networkSendRate = 20f;
+    [SerializeField] private float networkPositionThreshold = 0.02f;
+    [SerializeField] private float networkHeartbeatSeconds = 0.2f;
     [SerializeField] private float walkAnimThreshold = 0.05f;
     [SerializeField] private string walkBoolParam = "IsWalking";
     [SerializeField] private Animator animator;
     [SerializeField] private SpriteRenderer spriteRenderer;
     [SerializeField] private bool spriteFacesRight = true;
+    [SerializeField] private float touchDamage = 10f;
+    [SerializeField] private float touchDamageInterval = 0.5f;
 
     public float damage;
     protected Transform targetPlayer;
@@ -23,6 +28,13 @@ public class Enemy : Character
     private Collider2D enemyCollider;
     private Vector2 clientSmoothVelocity;
     private int walkBoolParamHash;
+    private float nextTouchDamageTime;
+    private float nextNetworkSyncTime;
+    private float nextNetworkHeartbeatTime;
+    private Vector2 lastSentPosition;
+    private bool lastSentFlipX;
+    private bool lastSentIsWalking;
+    private bool hasSentState;
 
     private float nextRetargetTime;
     private NetworkVariable<Vector2> netPosition = new NetworkVariable<Vector2>(
@@ -62,11 +74,17 @@ public class Enemy : Character
 
     public override void OnNetworkSpawn()
     {
+        base.OnNetworkSpawn();
+
         if (IsServer)
         {
             netPosition.Value = rb.position;
             netFlipX.Value = spriteRenderer != null && spriteRenderer.flipX;
             netIsWalking.Value = Mathf.Abs(rb.linearVelocity.x) > walkAnimThreshold;
+            lastSentPosition = netPosition.Value;
+            lastSentFlipX = netFlipX.Value;
+            lastSentIsWalking = netIsWalking.Value;
+            hasSentState = true;
         }
     }
 
@@ -98,15 +116,41 @@ public class Enemy : Character
         if (!IsServer) return;
 
         Move();
-        netPosition.Value = rb.position;
-        netFlipX.Value = spriteRenderer != null && spriteRenderer.flipX;
         bool isWalking = Mathf.Abs(rb.linearVelocity.x) > walkAnimThreshold;
-        netIsWalking.Value = isWalking;
 
         if (animator != null)
         {
             animator.SetBool(walkBoolParamHash, isWalking);
         }
+
+        float interval = 1f / Mathf.Max(1f, networkSendRate);
+        if (Time.time < nextNetworkSyncTime)
+        {
+            return;
+        }
+
+        nextNetworkSyncTime = Time.time + interval;
+        Vector2 currentPosition = rb.position;
+        bool currentFlipX = spriteRenderer != null && spriteRenderer.flipX;
+        bool isHeartbeatDue = Time.time >= nextNetworkHeartbeatTime;
+
+        bool movedEnough = !hasSentState || Vector2.Distance(currentPosition, lastSentPosition) >= Mathf.Max(0.001f, networkPositionThreshold);
+        bool stateChanged = !hasSentState || currentFlipX != lastSentFlipX || isWalking != lastSentIsWalking;
+
+        if (!movedEnough && !stateChanged && !isHeartbeatDue)
+        {
+            return;
+        }
+
+        netPosition.Value = currentPosition;
+        netFlipX.Value = currentFlipX;
+        netIsWalking.Value = isWalking;
+
+        lastSentPosition = currentPosition;
+        lastSentFlipX = currentFlipX;
+        lastSentIsWalking = isWalking;
+        hasSentState = true;
+        nextNetworkHeartbeatTime = Time.time + Mathf.Max(0.05f, networkHeartbeatSeconds);
     }
 
     protected void FindTarget()
@@ -187,6 +231,32 @@ public class Enemy : Character
             {
                 spriteRenderer.flipX = shouldFlip;
             }
+        }
+    }
+
+    void OnCollisionStay2D(Collision2D collision)
+    {
+        if (!IsServer) return;
+
+        TryDamagePlayer(collision.collider);
+    }
+
+    void OnTriggerStay2D(Collider2D other)
+    {
+        if (!IsServer) return;
+
+        TryDamagePlayer(other);
+    }
+
+    private void TryDamagePlayer(Collider2D other)
+    {
+        if (Time.time < nextTouchDamageTime || other == null) return;
+
+        Character playerCharacter = other.GetComponentInParent<Character>();
+        if (playerCharacter != null && playerCharacter.CompareTag("Player"))
+        {
+            playerCharacter.TakeDamage(touchDamage);
+            nextTouchDamageTime = Time.time + Mathf.Max(0.05f, touchDamageInterval);
         }
     }
 }
