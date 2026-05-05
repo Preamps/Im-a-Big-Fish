@@ -1,4 +1,4 @@
-using UnityEngine;
+﻿using UnityEngine;
 using UnityEngine.UI;
 using TMPro;
 
@@ -6,7 +6,7 @@ public class WaveCountUI : MonoBehaviour
 {
     [SerializeField] private TMP_Text waveText;
     [SerializeField] private string waitingText = "Waiting for wave...";
-    [SerializeField] private string runningFormat = "Wave {0}/{1}";
+    [SerializeField] private string runningFormat = "Wave {0}";
     [SerializeField] private string finishedText = "All waves cleared";
     [SerializeField] private float findWaveManagerInterval = 0.5f;
 
@@ -101,13 +101,6 @@ public class WaveCountUI : MonoBehaviour
         }
 
         int current = Mathf.Max(0, waveManager.CurrentWave.Value);
-        int max = Mathf.Max(1, waveManager.MaxWaves);
-
-        if (!waveManager.IsWaveRunning.Value && current >= max)
-        {
-            waveText.text = finishedText;
-            return;
-        }
 
         if (!waveManager.IsWaveRunning.Value && current <= 0)
         {
@@ -115,6 +108,13 @@ public class WaveCountUI : MonoBehaviour
             return;
         }
 
-        waveText.text = string.Format(runningFormat, Mathf.Clamp(current, 1, max), max);
+        try
+        {
+            waveText.text = string.Format(runningFormat, current, "∞");
+        }
+        catch
+        {
+            waveText.text = "Wave " + current;
+        }
     }
 }

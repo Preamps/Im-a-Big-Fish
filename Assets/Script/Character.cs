@@ -126,7 +126,9 @@ public abstract class Character : NetworkBehaviour
         }
     }
 
-    public virtual void TakeDamage(float dmg)
+    protected ulong lastDamagerId = ulong.MaxValue;
+
+    public virtual void TakeDamage(float dmg, ulong shooterId = ulong.MaxValue)
     {
         if (!IsServer) return;
         if (IsDead.Value) return;
@@ -136,6 +138,8 @@ public abstract class Character : NetworkBehaviour
         {
             return;
         }
+
+        lastDamagerId = shooterId;
 
         Health.Value = Mathf.Max(0f, Health.Value - safeDamage);
 

@@ -21,6 +21,7 @@ public class Enemy : Character
     [SerializeField] private bool spriteFacesRight = true;
     [SerializeField] private float touchDamage = 10f;
     [SerializeField] private float touchDamageInterval = 0.5f;
+    [SerializeField] private int killReward = 10;
 
     public float damage;
     protected Transform targetPlayer;
@@ -76,6 +77,30 @@ public class Enemy : Character
     {
         base.OnNetworkSpawn();
 
+        // Ignore collisions with all other currently spawned enemies
+        Enemy[] allEnemies = Object.FindObjectsByType<Enemy>(FindObjectsSortMode.None);
+        foreach (Enemy e in allEnemies)
+        {
+            if (e == this) continue;
+            if (e.enemyCollider == null || this.enemyCollider == null) continue;
+
+            Physics2D.IgnoreCollision(this.enemyCollider, e.enemyCollider, true);
+        }
+
+        // Ignore collisions with all currently spawned players
+        Player[] allPlayers = Object.FindObjectsByType<Player>(FindObjectsSortMode.None);
+        foreach (Player p in allPlayers)
+        {
+            Collider2D[] pCols = p.GetComponentsInChildren<Collider2D>(true);
+            foreach (var pCol in pCols)
+            {
+                if (pCol != null && this.enemyCollider != null && pCol.gameObject.activeInHierarchy && this.gameObject.activeInHierarchy)
+                {
+                    Physics2D.IgnoreCollision(this.enemyCollider, pCol, true);
+                }
+            }
+        }
+
         if (IsServer)
         {
             netPosition.Value = rb.position;
@@ -116,6 +141,7 @@ public class Enemy : Character
         if (!IsServer) return;
 
         Move();
+        TryDamagePlayerOverlap();
         bool isWalking = Mathf.Abs(rb.linearVelocity.x) > walkAnimThreshold;
 
         if (animator != null)
@@ -153,6 +179,25 @@ public class Enemy : Character
         nextNetworkHeartbeatTime = Time.time + Mathf.Max(0.05f, networkHeartbeatSeconds);
     }
 
+    protected override void Die()
+    {
+        if (IsServer && lastDamagerId != ulong.MaxValue)
+        {
+            // Give money to the player who dealt the final damage
+            if (NetworkManager.Singleton.ConnectedClients.TryGetValue(lastDamagerId, out var client))
+            {
+                var player = client.PlayerObject?.GetComponent<Player>();
+                if (player != null)
+                {
+                    player.Money.Value += killReward;
+                    player.KillCount.Value += 1;
+                }
+            }
+        }
+
+        base.Die();
+    }
+
     protected void FindTarget()
     {
         GameObject[] players = GameObject.FindGameObjectsWithTag("Player");
@@ -166,6 +211,12 @@ public class Enemy : Character
             if (playerObj == null || !playerObj.activeInHierarchy)
             {
                 continue;
+            }
+
+            Player p = playerObj.GetComponentInParent<Player>();
+            if (p != null && (p.IsDead.Value || p.IsDown.Value))
+            {
+                continue; // Ignore dead or downed players
             }
 
             Vector3 delta = playerObj.transform.position - enemyPos;
@@ -234,29 +285,21 @@ public class Enemy : Character
         }
     }
 
-    void OnCollisionStay2D(Collision2D collision)
+    private void TryDamagePlayerOverlap()
     {
-        if (!IsServer) return;
+        if (Time.time < nextTouchDamageTime || enemyCollider == null) return;
 
-        TryDamagePlayer(collision.collider);
-    }
-
-    void OnTriggerStay2D(Collider2D other)
-    {
-        if (!IsServer) return;
-
-        TryDamagePlayer(other);
-    }
-
-    private void TryDamagePlayer(Collider2D other)
-    {
-        if (Time.time < nextTouchDamageTime || other == null) return;
-
-        Character playerCharacter = other.GetComponentInParent<Character>();
-        if (playerCharacter != null && playerCharacter.CompareTag("Player"))
+        Collider2D[] results = Physics2D.OverlapBoxAll(enemyCollider.bounds.center, enemyCollider.bounds.size + new Vector3(0.2f, 0.2f, 0f), 0f);
+        foreach (Collider2D other in results)
         {
-            playerCharacter.TakeDamage(touchDamage);
-            nextTouchDamageTime = Time.time + Mathf.Max(0.05f, touchDamageInterval);
+            if (other == null) continue;
+            Player player = other.GetComponentInParent<Player>();
+            if (player != null && player.CompareTag("Player") && !player.IsDead.Value && !player.IsDown.Value)
+            {
+                player.TakeDamage(touchDamage);
+                nextTouchDamageTime = Time.time + Mathf.Max(0.05f, touchDamageInterval);
+                return;
+            }
         }
     }
 }

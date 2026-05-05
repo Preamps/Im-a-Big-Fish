@@ -2,15 +2,21 @@ using System.Collections;
 using Unity.Netcode;
 using UnityEngine;
 
+[System.Serializable]
+public struct EnemySpawnConfig
+{
+    public NetworkObject prefab;
+    [Min(0f)] public float spawnWeight;
+}
+
 public class WaveManager : NetworkBehaviour
 {
     [Header("Spawn Setup")]
-    [SerializeField] private NetworkObject enemyPrefab;
+    [SerializeField] private EnemySpawnConfig[] enemyConfigs;
     [SerializeField] private Transform[] spawnPoints;
     [SerializeField] private Transform[] playerRespawnPoints;
 
     [Header("Wave Setup")]
-    [SerializeField] private int maxWaves = 5;
     [SerializeField] private int baseEnemiesPerWave = 3;
     [SerializeField] private int extraEnemiesPerWave = 2;
     [SerializeField] private float timeBetweenEnemySpawns = 0.25f;
@@ -30,13 +36,18 @@ public class WaveManager : NetworkBehaviour
         NetworkVariableWritePermission.Server
     );
 
-    public int MaxWaves => Mathf.Clamp(maxWaves, 1, 5);
+    public NetworkVariable<int> EnemiesRemaining = new NetworkVariable<int>(
+        0,
+        NetworkVariableReadPermission.Everyone,
+        NetworkVariableWritePermission.Server
+    );
 
     private Coroutine waveRoutine;
+    private int unspawnedEnemies = 0;
+    private float nextAliveCheckTime;
 
     private void OnValidate()
     {
-        maxWaves = Mathf.Clamp(maxWaves, 1, 5);
         baseEnemiesPerWave = Mathf.Max(1, baseEnemiesPerWave);
         extraEnemiesPerWave = Mathf.Max(0, extraEnemiesPerWave);
         timeBetweenEnemySpawns = Mathf.Max(0.01f, timeBetweenEnemySpawns);
@@ -49,9 +60,9 @@ public class WaveManager : NetworkBehaviour
     {
         if (!IsServer) return;
 
-        if (enemyPrefab == null)
+        if (enemyConfigs == null || enemyConfigs.Length == 0)
         {
-            Debug.LogWarning("WaveManager: enemyPrefab is missing.");
+            Debug.LogWarning("WaveManager: add at least 1 enemy prefab.");
             return;
         }
 
@@ -78,6 +89,20 @@ public class WaveManager : NetworkBehaviour
         }
     }
 
+    private void Update()
+    {
+        if (!IsServer) return;
+
+        if (IsWaveRunning.Value)
+        {
+            if (Time.time >= nextAliveCheckTime)
+            {
+                nextAliveCheckTime = Time.time + aliveCheckInterval;
+                EnemiesRemaining.Value = unspawnedEnemies + GetAliveEnemyCount();
+            }
+        }
+    }
+
     private IEnumerator RunWavesRoutine()
     {
         CurrentWave.Value = 0;
@@ -88,8 +113,8 @@ public class WaveManager : NetworkBehaviour
             yield return new WaitForSeconds(firstWaveDelay);
         }
 
-        int totalWaves = Mathf.Clamp(maxWaves, 1, 5);
-        for (int wave = 1; wave <= totalWaves; wave++)
+        int wave = 1;
+        while (true)
         {
             CurrentWave.Value = wave;
             RespawnDeadPlayers();
@@ -99,32 +124,31 @@ public class WaveManager : NetworkBehaviour
 
             yield return StartCoroutine(WaitUntilWaveClearedRoutine());
 
-            if (wave < totalWaves && timeBetweenWaves > 0f)
+            if (timeBetweenWaves > 0f)
             {
                 yield return new WaitForSeconds(timeBetweenWaves);
             }
-        }
 
-        IsWaveRunning.Value = false;
-        waveRoutine = null;
-        Debug.Log("WaveManager: all waves completed.");
+            wave++;
+        }
     }
 
     private IEnumerator SpawnWaveRoutine(int enemyCount)
     {
-        int safeCount = Mathf.Max(0, enemyCount);
-        if (safeCount <= 0)
+        unspawnedEnemies = Mathf.Max(0, enemyCount);
+        if (unspawnedEnemies <= 0)
         {
             yield break;
         }
 
-        float spawnDelay = Mathf.Max(1f, timeBetweenEnemySpawns);
+        float spawnDelay = Mathf.Max(0.5f, timeBetweenEnemySpawns);
 
-        for (int i = 0; i < safeCount; i++)
+        while (unspawnedEnemies > 0)
         {
             SpawnOneEnemy();
+            unspawnedEnemies--;
 
-            if (i < safeCount - 1)
+            if (unspawnedEnemies > 0)
             {
                 yield return new WaitForSeconds(spawnDelay);
             }
@@ -134,14 +158,44 @@ public class WaveManager : NetworkBehaviour
     private void SpawnOneEnemy()
     {
         if (!IsServer) return;
-        if (enemyPrefab == null || spawnPoints == null || spawnPoints.Length == 0) return;
+        if (enemyConfigs == null || enemyConfigs.Length == 0 || spawnPoints == null || spawnPoints.Length == 0) return;
 
         int index = Random.Range(0, spawnPoints.Length);
         Transform point = spawnPoints[index];
         if (point == null) return;
 
+        float totalWeight = 0f;
+        for (int i = 0; i < enemyConfigs.Length; i++)
+        {
+            if (enemyConfigs[i].prefab != null && enemyConfigs[i].spawnWeight > 0f)
+            {
+                totalWeight += enemyConfigs[i].spawnWeight;
+            }
+        }
+
+        if (totalWeight <= 0f) return;
+
+        float randomVal = Random.Range(0f, totalWeight);
+        float currentWeight = 0f;
+        NetworkObject prefabToSpawn = null;
+
+        for (int i = 0; i < enemyConfigs.Length; i++)
+        {
+            if (enemyConfigs[i].prefab != null && enemyConfigs[i].spawnWeight > 0f)
+            {
+                currentWeight += enemyConfigs[i].spawnWeight;
+                if (randomVal <= currentWeight)
+                {
+                    prefabToSpawn = enemyConfigs[i].prefab;
+                    break;
+                }
+            }
+        }
+
+        if (prefabToSpawn == null) return;
+
         NetworkObject enemyInstance = Instantiate(
-            enemyPrefab,
+            prefabToSpawn,
             point.position,
             point.rotation
         );
@@ -151,8 +205,12 @@ public class WaveManager : NetworkBehaviour
 
     private IEnumerator WaitUntilWaveClearedRoutine()
     {
-        while (GetAliveEnemyCount() > 0)
+        while (true)
         {
+            if (EnemiesRemaining.Value <= 0)
+            {
+                break;
+            }
             yield return new WaitForSeconds(aliveCheckInterval);
         }
     }

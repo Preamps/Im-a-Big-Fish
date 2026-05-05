@@ -14,7 +14,7 @@ public class HostGameManager
     private string joinCode;
 
     private const int MaxConnections = 4;
-    private const string GameSceneName = "Game";
+    private const string GameSceneName = "GameScene";
     public async Task StartHostAsync()
     {
         try
@@ -44,7 +44,10 @@ public class HostGameManager
         transport.SetRelayServerData(relayServerData);
 
         NetworkManager.Singleton.StartHost();
+    }
 
+    public void StartGame()
+    {
         NetworkManager.Singleton.SceneManager.LoadScene(GameSceneName, LoadSceneMode.Single);
     }
 }

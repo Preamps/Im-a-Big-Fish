@@ -5,6 +5,7 @@ public class GameData : MonoBehaviour
     public static GameData Instance;
 
     public string JoinCode;
+    public string PlayerName = "Player";
 
     private void Awake()
     {
