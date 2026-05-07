@@ -13,6 +13,7 @@ public class ClientGameManager
 {
     private JoinAllocation allocation;
     private const string MenuSceneName = "Menu";
+
     public async Task<bool> InitAsync()
     {
         await UnityServices.InitializeAsync();
@@ -31,6 +32,7 @@ public class ClientGameManager
     {
         SceneManager.LoadScene(MenuSceneName);
     }
+
     public async Task StartClientAsync(string joinCode)
     {
         try

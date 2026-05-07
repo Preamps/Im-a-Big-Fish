@@ -24,6 +24,11 @@ public abstract class Character : NetworkBehaviour
     private Color[] baseSpriteColors;
     private Coroutine damageFlashRoutine;
 
+    protected void SetMaxHealth(float value)
+    {
+        maxHealth = Mathf.Max(1f, value);
+    }
+
     public override void OnNetworkSpawn()
     {
         ResolveDamageFlashRenderers();
@@ -86,6 +91,16 @@ public abstract class Character : NetworkBehaviour
         damageFlashRoutine = StartCoroutine(DamageFlashRoutine());
     }
 
+    public void PlayLocalDamageFlash()
+    {
+        if (!isActiveAndEnabled)
+        {
+            return;
+        }
+
+        PlayDamageFlash();
+    }
+
     private IEnumerator DamageFlashRoutine()
     {
         for (int i = 0; i < damageFlashRenderers.Length; i++)
@@ -143,6 +158,9 @@ public abstract class Character : NetworkBehaviour
 
         Health.Value = Mathf.Max(0f, Health.Value - safeDamage);
 
+        // Play damage sound for all clients
+        PlayDamageSoundClientRpc(transform.position);
+
         if (Health.Value <= 0)
         {
             Die();
@@ -154,6 +172,9 @@ public abstract class Character : NetworkBehaviour
         Debug.Log($"{OwnerClientId} died");
 
         IsDead.Value = true;
+
+        // Play death sound for all clients
+        PlayDeathSoundClientRpc(transform.position);
 
         if (!despawnOnDeath)
         {

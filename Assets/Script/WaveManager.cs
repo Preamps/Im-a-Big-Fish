@@ -19,7 +19,9 @@ public class WaveManager : NetworkBehaviour
     [Header("Wave Setup")]
     [SerializeField] private int baseEnemiesPerWave = 3;
     [SerializeField] private int extraEnemiesPerWave = 2;
+    [SerializeField] private float enemyHealthIncreasePerWave = 5f;
     [SerializeField] private float timeBetweenEnemySpawns = 0.25f;
+    [SerializeField] private float timeBetweenPhases = 5f;
     [SerializeField] private float timeBetweenWaves = 2f;
     [SerializeField] private float firstWaveDelay = 1f;
     [SerializeField] private float aliveCheckInterval = 0.2f;
@@ -42,6 +44,12 @@ public class WaveManager : NetworkBehaviour
         NetworkVariableWritePermission.Server
     );
 
+    public NetworkVariable<int> WaveClearedSignal = new NetworkVariable<int>(
+        0,
+        NetworkVariableReadPermission.Everyone,
+        NetworkVariableWritePermission.Server
+    );
+
     private Coroutine waveRoutine;
     private int unspawnedEnemies = 0;
     private float nextAliveCheckTime;
@@ -50,7 +58,9 @@ public class WaveManager : NetworkBehaviour
     {
         baseEnemiesPerWave = Mathf.Max(1, baseEnemiesPerWave);
         extraEnemiesPerWave = Mathf.Max(0, extraEnemiesPerWave);
+        enemyHealthIncreasePerWave = Mathf.Max(0f, enemyHealthIncreasePerWave);
         timeBetweenEnemySpawns = Mathf.Max(0.01f, timeBetweenEnemySpawns);
+        timeBetweenPhases = Mathf.Max(0f, timeBetweenPhases);
         timeBetweenWaves = Mathf.Max(0f, timeBetweenWaves);
         firstWaveDelay = Mathf.Max(0f, firstWaveDelay);
         aliveCheckInterval = Mathf.Max(0.05f, aliveCheckInterval);
@@ -124,6 +134,12 @@ public class WaveManager : NetworkBehaviour
 
             yield return StartCoroutine(WaitUntilWaveClearedRoutine());
 
+            // notify clients that the wave was cleared (increment signal)
+            if (IsServer)
+            {
+                WaveClearedSignal.Value = WaveClearedSignal.Value + 1;
+            }
+
             if (timeBetweenWaves > 0f)
             {
                 yield return new WaitForSeconds(timeBetweenWaves);
@@ -135,24 +151,49 @@ public class WaveManager : NetworkBehaviour
 
     private IEnumerator SpawnWaveRoutine(int enemyCount)
     {
-        unspawnedEnemies = Mathf.Max(0, enemyCount);
-        if (unspawnedEnemies <= 0)
+        if (enemyCount <= 0)
         {
             yield break;
         }
 
-        float spawnDelay = Mathf.Max(0.5f, timeBetweenEnemySpawns);
+        float spawnDelay = Mathf.Max(0.01f, timeBetweenEnemySpawns);
+        float phaseBetweenDelay = Mathf.Max(0f, timeBetweenPhases);
 
-        while (unspawnedEnemies > 0)
+        // Calculate phase 1 and phase 2 counts
+        int phase1Count = (enemyCount + 1) / 2; // Round up
+        int phase2Count = enemyCount - phase1Count;
+
+        // Phase 1: Spawn first half
+        for (int i = 0; i < phase1Count; i++)
         {
             SpawnOneEnemy();
-            unspawnedEnemies--;
+            unspawnedEnemies = enemyCount - i - 1;
 
-            if (unspawnedEnemies > 0)
+            if (i < phase1Count - 1)
             {
                 yield return new WaitForSeconds(spawnDelay);
             }
         }
+
+        // Wait between phases if there are enemies in phase 2
+        if (phaseBetweenDelay > 0f && phase2Count > 0)
+        {
+            yield return new WaitForSeconds(phaseBetweenDelay);
+        }
+
+        // Phase 2: Spawn second half
+        for (int i = 0; i < phase2Count; i++)
+        {
+            SpawnOneEnemy();
+            unspawnedEnemies = phase2Count - i - 1;
+
+            if (i < phase2Count - 1)
+            {
+                yield return new WaitForSeconds(spawnDelay);
+            }
+        }
+
+        unspawnedEnemies = 0;
     }
 
     private void SpawnOneEnemy()
@@ -199,6 +240,11 @@ public class WaveManager : NetworkBehaviour
             point.position,
             point.rotation
         );
+
+        if (enemyInstance.TryGetComponent<Enemy>(out Enemy enemy))
+        {
+            enemy.ApplyWaveHealthBonus(CurrentWave.Value, enemyHealthIncreasePerWave);
+        }
 
         enemyInstance.Spawn(true);
     }

@@ -1,0 +1,702 @@
+fileFormatVersion: 2
+guid: ff243bcf8df1ebc45bd00911ea5d9380
+TextureImporter:
+  internalIDToNameTable:
+  - first:
+      213: 8982393200207004507
+    second: BG_Cloud_0
+  - first:
+      213: 1217941288546388395
+    second: BG_Cloud_1
+  - first:
+      213: -6721712909637190221
+    second: BG_Cloud_2
+  - first:
+      213: -1179922984048602327
+    second: BG_Cloud_3
+  - first:
+      213: 4623405166848043686
+    second: BG_Cloud_4
+  - first:
+      213: 5445566624528269670
+    second: BG_Cloud_5
+  - first:
+      213: 1524400228921143167
+    second: BG_Cloud_6
+  - first:
+      213: 8218094596458256650
+    second: BG_Cloud_7
+  - first:
+      213: -2367785455336499450
+    second: BG_Cloud_8
+  - first:
+      213: 3189417844248097920
+    second: BG_Cloud_9
+  - first:
+      213: 4242736056080587139
+    second: BG_Cloud_10
+  - first:
+      213: -1927009269810373671
+    second: BG_Cloud_11
+  - first:
+      213: -1148078766723733498
+    second: BG_Cloud_12
+  - first:
+      213: -6554256836310636470
+    second: BG_Cloud_13
+  - first:
+      213: -7912521679364192682
+    second: BG_Cloud_14
+  - first:
+      213: -595615342490857236
+    second: BG_Cloud_15
+  - first:
+      213: -4447401782409209878
+    second: BG_Cloud_16
+  - first:
+      213: -1610815956516539991
+    second: BG_Cloud_17
+  - first:
+      213: -5885287577154794153
+    second: BG_Cloud_18
+  - first:
+      213: 5317389119035537987
+    second: BG_Cloud_19
+  - first:
+      213: 6641880476090144764
+    second: BG_Cloud_20
+  - first:
+      213: -4864189462091322294
+    second: BG_Cloud_21
+  externalObjects: {}
+  serializedVersion: 13
+  mipmaps:
+    mipMapMode: 0
+    enableMipMap: 0
+    sRGBTexture: 1
+    linearTexture: 0
+    fadeOut: 0
+    borderMipMap: 0
+    mipMapsPreserveCoverage: 0
+    alphaTestReferenceValue: 0.5
+    mipMapFadeDistanceStart: 1
+    mipMapFadeDistanceEnd: 3
+  bumpmap:
+    convertToNormalMap: 0
+    externalNormalMap: 0
+    heightScale: 0.25
+    normalMapFilter: 0
+    flipGreenChannel: 0
+  isReadable: 0
+  streamingMipmaps: 0
+  streamingMipmapsPriority: 0
+  vTOnly: 0
+  ignoreMipmapLimit: 0
+  grayScaleToAlpha: 0
+  generateCubemap: 6
+  cubemapConvolution: 0
+  seamlessCubemap: 0
+  textureFormat: 1
+  maxTextureSize: 2048
+  textureSettings:
+    serializedVersion: 2
+    filterMode: 1
+    aniso: 1
+    mipBias: 0
+    wrapU: 1
+    wrapV: 1
+    wrapW: 1
+  nPOTScale: 0
+  lightmap: 0
+  compressionQuality: 50
+  spriteMode: 1
+  spriteExtrude: 1
+  spriteMeshType: 1
+  alignment: 0
+  spritePivot: {x: 0.5, y: 0.5}
+  spritePixelsToUnits: 100
+  spriteBorder: {x: 0, y: 0, z: 0, w: 0}
+  spriteGenerateFallbackPhysicsShape: 1
+  alphaUsage: 1
+  alphaIsTransparency: 1
+  spriteTessellationDetail: -1
+  textureType: 8
+  textureShape: 1
+  singleChannelComponent: 0
+  flipbookRows: 1
+  flipbookColumns: 1
+  maxTextureSizeSet: 0
+  compressionQualitySet: 0
+  textureFormatSet: 0
+  ignorePngGamma: 0
+  applyGammaDecoding: 0
+  swizzle: 50462976
+  cookieLightType: 0
+  platformSettings:
+  - serializedVersion: 4
+    buildTarget: DefaultTexturePlatform
+    maxTextureSize: 2048
+    resizeAlgorithm: 0
+    textureFormat: -1
+    textureCompression: 1
+    compressionQuality: 50
+    crunchedCompression: 0
+    allowsAlphaSplitting: 0
+    overridden: 0
+    ignorePlatformSupport: 0
+    androidETC2FallbackOverride: 0
+    forceMaximumCompressionQuality_BC6H_BC7: 0
+  - serializedVersion: 4
+    buildTarget: Standalone
+    maxTextureSize: 2048
+    resizeAlgorithm: 0
+    textureFormat: -1
+    textureCompression: 1
+    compressionQuality: 50
+    crunchedCompression: 0
+    allowsAlphaSplitting: 0
+    overridden: 0
+    ignorePlatformSupport: 0
+    androidETC2FallbackOverride: 0
+    forceMaximumCompressionQuality_BC6H_BC7: 0
+  - serializedVersion: 4
+    buildTarget: Android
+    maxTextureSize: 2048
+    resizeAlgorithm: 0
+    textureFormat: -1
+    textureCompression: 1
+    compressionQuality: 50
+    crunchedCompression: 0
+    allowsAlphaSplitting: 0
+    overridden: 0
+    ignorePlatformSupport: 0
+    androidETC2FallbackOverride: 0
+    forceMaximumCompressionQuality_BC6H_BC7: 0
+  spriteSheet:
+    serializedVersion: 2
+    sprites:
+    - serializedVersion: 2
+      name: BG_Cloud_0
+      rect:
+        serializedVersion: 2
+        x: 0
+        y: 1024
+        width: 167
+        height: 40
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: b53093b560fd7ac70800000000000000
+      internalID: 8982393200207004507
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: BG_Cloud_1
+      rect:
+        serializedVersion: 2
+        x: 258
+        y: 1040
+        width: 106
+        height: 24
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: ba9c615262ff6e010800000000000000
+      internalID: 1217941288546388395
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: BG_Cloud_2
+      rect:
+        serializedVersion: 2
+        x: 415
+        y: 995
+        width: 55
+        height: 54
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 3bdfaeac8bda7b2a0800000000000000
+      internalID: -6721712909637190221
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: BG_Cloud_3
+      rect:
+        serializedVersion: 2
+        x: 793
+        y: 989
+        width: 72
+        height: 52
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 923d6792c4210afe0800000000000000
+      internalID: -1179922984048602327
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: BG_Cloud_4
+      rect:
+        serializedVersion: 2
+        x: 963
+        y: 1022
+        width: 195
+        height: 42
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 6aaeeaed082a92040800000000000000
+      internalID: 4623405166848043686
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: BG_Cloud_5
+      rect:
+        serializedVersion: 2
+        x: 1122
+        y: 964
+        width: 296
+        height: 79
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 6610bbf3ef9829b40800000000000000
+      internalID: 5445566624528269670
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: BG_Cloud_6
+      rect:
+        serializedVersion: 2
+        x: 1608
+        y: 919
+        width: 199
+        height: 126
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: f7f6e5c7ee1c72510800000000000000
+      internalID: 1524400228921143167
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: BG_Cloud_7
+      rect:
+        serializedVersion: 2
+        x: 0
+        y: 751
+        width: 801
+        height: 283
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: a0993708e798c0270800000000000000
+      internalID: 8218094596458256650
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: BG_Cloud_8
+      rect:
+        serializedVersion: 2
+        x: 1523
+        y: 966
+        width: 31
+        height: 24
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 607d4566cafe32fd0800000000000000
+      internalID: -2367785455336499450
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: BG_Cloud_9
+      rect:
+        serializedVersion: 2
+        x: 1839
+        y: 980
+        width: 53
+        height: 48
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 08433be81a6134c20800000000000000
+      internalID: 3189417844248097920
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: BG_Cloud_10
+      rect:
+        serializedVersion: 2
+        x: 990
+        y: 938
+        width: 65
+        height: 40
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 389dc6ac6f931ea30800000000000000
+      internalID: 4242736056080587139
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: BG_Cloud_11
+      rect:
+        serializedVersion: 2
+        x: 1368
+        y: 887
+        width: 300
+        height: 64
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 9db51126743e145e0800000000000000
+      internalID: -1927009269810373671
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: BG_Cloud_12
+      rect:
+        serializedVersion: 2
+        x: 800
+        y: 867
+        width: 76
+        height: 66
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 6086347c1743110f0800000000000000
+      internalID: -1148078766723733498
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: BG_Cloud_13
+      rect:
+        serializedVersion: 2
+        x: 1168
+        y: 895
+        width: 69
+        height: 34
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: a486701222a9a05a0800000000000000
+      internalID: -6554256836310636470
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: BG_Cloud_14
+      rect:
+        serializedVersion: 2
+        x: 1699
+        y: 910
+        width: 32
+        height: 27
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 6568be77473113290800000000000000
+      internalID: -7912521679364192682
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: BG_Cloud_15
+      rect:
+        serializedVersion: 2
+        x: 1733
+        y: 759
+        width: 187
+        height: 154
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: ce05f007003fbb7f0800000000000000
+      internalID: -595615342490857236
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: BG_Cloud_16
+      rect:
+        serializedVersion: 2
+        x: 1749
+        y: 858
+        width: 106
+        height: 62
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: ae75f0a64a7a742c0800000000000000
+      internalID: -4447401782409209878
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: BG_Cloud_17
+      rect:
+        serializedVersion: 2
+        x: 769
+        y: 771
+        width: 738
+        height: 134
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 9a1fc490c6b35a9e0800000000000000
+      internalID: -1610815956516539991
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: BG_Cloud_18
+      rect:
+        serializedVersion: 2
+        x: 1481
+        y: 783
+        width: 53
+        height: 34
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 75d4ba25122435ea0800000000000000
+      internalID: -5885287577154794153
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: BG_Cloud_19
+      rect:
+        serializedVersion: 2
+        x: 1608
+        y: 798
+        width: 27
+        height: 24
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: 34af3a42b392bc940800000000000000
+      internalID: 5317389119035537987
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: BG_Cloud_20
+      rect:
+        serializedVersion: 2
+        x: 1677
+        y: 810
+        width: 56
+        height: 47
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: cf794f15a13bc2c50800000000000000
+      internalID: 6641880476090144764
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    - serializedVersion: 2
+      name: BG_Cloud_21
+      rect:
+        serializedVersion: 2
+        x: 1538
+        y: 785
+        width: 45
+        height: 23
+      alignment: 0
+      pivot: {x: 0, y: 0}
+      border: {x: 0, y: 0, z: 0, w: 0}
+      customData: 
+      outline: []
+      physicsShape: []
+      tessellationDetail: -1
+      bones: []
+      spriteID: a4c29dfa47dee7cb0800000000000000
+      internalID: -4864189462091322294
+      vertices: []
+      indices: 
+      edges: []
+      weights: []
+    outline: []
+    customData: 
+    physicsShape: []
+    bones: []
+    spriteID: 5e97eb03825dee720800000000000000
+    internalID: 0
+    vertices: []
+    indices: 
+    edges: []
+    weights: []
+    secondaryTextures: []
+    spriteCustomMetadata:
+      entries: []
+    nameFileIdTable:
+      BG_Cloud_0: 8982393200207004507
+      BG_Cloud_1: 1217941288546388395
+      BG_Cloud_10: 4242736056080587139
+      BG_Cloud_11: -1927009269810373671
+      BG_Cloud_12: -1148078766723733498
+      BG_Cloud_13: -6554256836310636470
+      BG_Cloud_14: -7912521679364192682
+      BG_Cloud_15: -595615342490857236
+      BG_Cloud_16: -4447401782409209878
+      BG_Cloud_17: -1610815956516539991
+      BG_Cloud_18: -5885287577154794153
+      BG_Cloud_19: 5317389119035537987
+      BG_Cloud_2: -6721712909637190221
+      BG_Cloud_20: 6641880476090144764
+      BG_Cloud_21: -4864189462091322294
+      BG_Cloud_3: -1179922984048602327
+      BG_Cloud_4: 4623405166848043686
+      BG_Cloud_5: 5445566624528269670
+      BG_Cloud_6: 1524400228921143167
+      BG_Cloud_7: 8218094596458256650
+      BG_Cloud_8: -2367785455336499450
+      BG_Cloud_9: 3189417844248097920
+  mipmapLimitGroupName: 
+  pSDRemoveMatte: 0
+  userData: 
+  assetBundleName: 
+  assetBundleVariant: 

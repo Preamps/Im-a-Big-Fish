@@ -25,7 +25,7 @@ Transform:
   m_GameObject: {fileID: 3415203468013411881}
   serializedVersion: 2
   m_LocalRotation: {x: -0, y: -0, z: -0, w: 1}
-  m_LocalPosition: {x: -3.256, y: 0.05, z: 0}
+  m_LocalPosition: {x: -3.876, y: -0.063, z: 0}
   m_LocalScale: {x: 0.4713554, y: 0.4713554, z: 0.4713554}
   m_ConstrainProportionsScale: 0
   m_Children: []
@@ -56,7 +56,7 @@ Transform:
   m_GameObject: {fileID: 4609725538488748751}
   serializedVersion: 2
   m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
-  m_LocalPosition: {x: -1.323, y: 0.215, z: 0}
+  m_LocalPosition: {x: -1.416, y: 0.204, z: 0}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children: []
@@ -75,7 +75,7 @@ GameObject:
   - component: {fileID: -8889496293942447076}
   - component: {fileID: 4769637017672484101}
   m_Layer: 0
-  m_Name: Gun2
+  m_Name: Gun2Ak47
   m_TagString: Untagged
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
@@ -91,7 +91,7 @@ Transform:
   serializedVersion: 2
   m_LocalRotation: {x: -0, y: -0, z: -0, w: 1}
   m_LocalPosition: {x: 0.266, y: 0.047, z: 0}
-  m_LocalScale: {x: 0.8, y: 0.8, z: 0.8}
+  m_LocalScale: {x: 0.9274548, y: 0.90510654, z: 0.89393234}
   m_ConstrainProportionsScale: 0
   m_Children:
   - {fileID: 7050914104569762838}
@@ -147,7 +147,7 @@ SpriteRenderer:
   m_SortingLayer: 0
   m_SortingOrder: 9
   m_MaskInteraction: 0
-  m_Sprite: {fileID: 21300000, guid: 9feb8d12cf5c64c4aacbeb016f63ce4b, type: 3}
+  m_Sprite: {fileID: -6916113469310259479, guid: 3d0e99d34a2f0e841a6b93f12c7d12c1, type: 3}
   m_Color: {r: 1, g: 1, b: 1, a: 1}
   m_FlipX: 0
   m_FlipY: 0
@@ -169,7 +169,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: d5a57f767e5e46a458fc5d3c628d0cbb, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Unity.Netcode.Runtime::Unity.Netcode.NetworkObject
-  GlobalObjectIdHash: 282626332
+  GlobalObjectIdHash: 924941837
   InScenePlacedSourceGlobalObjectIdHash: 0
   DeferredDespawnTick: 0
   Ownership: 1
@@ -199,16 +199,26 @@ MonoBehaviour:
   pivot: {fileID: 4676118290747067439}
   serverBulletPrefab: {fileID: 969277354531038930, guid: c9ac432285ba8c24eaf0cc7e3d8de9d8, type: 3}
   clientBulletPrefab: {fileID: 969277354531038930, guid: c5c98cf74e0635e42816c2188dea97c7, type: 3}
-  muzzleFlashPrefab: {fileID: 4231662871266753733, guid: 3284df5f343671f4eb1fe859dd862a4b, type: 3}
+  muzzleFlashPrefab: {fileID: 4231662871266753733, guid: 673dade7ade8a544bab518e664e26697, type: 3}
   bulletShellPrefab: {fileID: 4068116059452685361, guid: 88edd84802c3c98498e074144c3b68b9, type: 3}
   shellEjectionPoint: {fileID: 4231119442683542920}
+  gunshotClip: {fileID: 8300000, guid: e8f875df6fe60c846a38b3acc9a4ec7a, type: 3}
+  reloadClip: {fileID: 8300000, guid: 81dd870d00c8459479b0857e556cb176, type: 3}
+  gunshotVolume: 0.6
+  reloadVolume: 0.15
+  gunshotIs3D: 1
+  reloadIs3D: 1
+  gunshotMaxDistance: 50
+  reloadMaxDistance: 10
   muzzleFlashDuration: 0.05
-  bulletSpeed: 25
-  bulletDamage: 23
-  fireRate: 8
+  bulletSpeed: 30
+  bulletDamage: 40
+  fireRate: 9.5
   holdToFire: 1
+  bulletsPerShot: 1
+  spreadAngle: 28
   handAim: {fileID: 0}
-  recoilAmount: 0.5
+  recoilAmount: 2.5
   maxActiveBulletsPerShooter: 32
-  maxAmmo: 55
-  reloadTime: 1.5
+  maxAmmo: 40
+  reloadTime: 2

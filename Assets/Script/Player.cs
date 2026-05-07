@@ -1,9 +1,14 @@
 ﻿using UnityEngine;
 using Unity.Netcode;
 using TMPro;
+using System.Collections.Generic;
 
 public class Player : Character
 {
+    private static readonly List<Player> activePlayers = new List<Player>();
+
+    public static IReadOnlyList<Player> ActivePlayers => activePlayers;
+
     [SerializeField] private float networkSendRate = 20f;
     [SerializeField] private float inputSendThreshold = 0.02f;
     [SerializeField] private float positionSendThreshold = 0.02f;
@@ -17,6 +22,7 @@ public class Player : Character
 
     private Rigidbody2D rb;
     private Animator animator;
+    private PhysicsMaterial2D noFrictionMaterial;
 
     private float moveInput;
     private bool wantsToJump;
@@ -42,6 +48,15 @@ public class Player : Character
 
     private SpriteRenderer mainRenderer;
     private Sprite originalSprite;
+    private NetworkVariable<int> characterIndex = new NetworkVariable<int>(
+        0,
+        NetworkVariableReadPermission.Everyone,
+        NetworkVariableWritePermission.Owner
+    );
+
+    [Header("Character Cosmetics")]
+    [SerializeField] private RuntimeAnimatorController[] characterAnimators = new RuntimeAnimatorController[4];
+    [SerializeField] private Sprite[] characterDownSprites = new Sprite[4];
 
     // ⭐ sync movement ให้ทุก client
     private NetworkVariable<float> netMoveInput =
@@ -101,6 +116,20 @@ public class Player : Character
         playerRenderers = GetComponentsInChildren<SpriteRenderer>(true);
         playerGuns = GetComponentsInChildren<Gun>(true);
         rb.interpolation = RigidbodyInterpolation2D.Interpolate;
+
+        noFrictionMaterial = new PhysicsMaterial2D("PlayerNoFriction")
+        {
+            friction = 0f,
+            bounciness = 0f
+        };
+
+        for (int i = 0; i < playerColliders.Length; i++)
+        {
+            if (playerColliders[i] != null)
+            {
+                playerColliders[i].sharedMaterial = noFrictionMaterial;
+            }
+        }
 
         mainRenderer = GetComponent<SpriteRenderer>();
         if (mainRenderer != null)
@@ -234,15 +263,25 @@ public class Player : Character
     public override void OnNetworkSpawn()
     {
         base.OnNetworkSpawn();
+        if (!activePlayers.Contains(this))
+        {
+            activePlayers.Add(this);
+        }
         IsDead.OnValueChanged += OnDeadStateChanged;
         IsDown.OnValueChanged += OnDownStateChanged;
         playerName.OnValueChanged += OnPlayerNameChanged;
+        characterIndex.OnValueChanged += OnCharacterIndexChanged;
         UpdateVisibilityState();
         UpdateNameUI(playerName.Value);
+
+        // Ensure current index is applied immediately (in case value was set before listener ran)
+        ApplyCharacterAppearance(characterIndex.Value);
 
         if (IsOwner)
         {
             playerName.Value = GameData.Instance.PlayerName;
+            // Owner writes the chosen character index directly so it syncs to server/other clients
+            characterIndex.Value = Mathf.Clamp(GameData.Instance.SelectedCharacterIndex, 0, GameData.CharacterCount - 1);
             netMoveInput.Value = moveInput;
             netPosition.Value = rb.position;
             lastSentMoveInput = moveInput;
@@ -302,14 +341,68 @@ public class Player : Character
     public override void OnNetworkDespawn()
     {
         base.OnNetworkDespawn();
+        activePlayers.Remove(this);
         IsDead.OnValueChanged -= OnDeadStateChanged;
         IsDown.OnValueChanged -= OnDownStateChanged;
         playerName.OnValueChanged -= OnPlayerNameChanged;
+        characterIndex.OnValueChanged -= OnCharacterIndexChanged;
     }
 
     private void OnPlayerNameChanged(Unity.Collections.FixedString32Bytes previousValue, Unity.Collections.FixedString32Bytes newValue)
     {
         UpdateNameUI(newValue);
+    }
+
+    private void OnCharacterIndexChanged(int previousValue, int newValue)
+    {
+        Debug.Log($"[Player] CharacterIndex changed from {previousValue} to {newValue} on {(IsServer ? "Server" : "Client")}, Owner:{OwnerClientId}");
+        ApplyCharacterAppearance(newValue);
+    }
+
+    [ServerRpc]
+    private void RequestCharacterIndexServerRpc(int index, ServerRpcParams rpcParams = default)
+    {
+        ulong sender = rpcParams.Receive.SenderClientId;
+        Debug.Log($"[Player] Received RequestCharacterIndexServerRpc from client {sender} with index {index}");
+        characterIndex.Value = Mathf.Clamp(index, 0, GameData.CharacterCount - 1);
+    }
+
+    private void ApplyCharacterAppearance(int index)
+    {
+        int safeIndex = Mathf.Clamp(index, 0, GameData.CharacterCount - 1);
+        bool appliedAnimator = false;
+        bool appliedDownSprite = false;
+
+        if (animator != null && characterAnimators != null && safeIndex < characterAnimators.Length)
+        {
+            var controller = characterAnimators[safeIndex];
+            if (controller != null)
+            {
+                animator.runtimeAnimatorController = controller;
+                animator.Rebind();
+                animator.Update(0f);
+                appliedAnimator = true;
+            }
+        }
+
+        if (characterDownSprites != null && safeIndex < characterDownSprites.Length)
+        {
+            var ds = characterDownSprites[safeIndex];
+            if (ds != null)
+            {
+                downSprite = ds;
+                appliedDownSprite = true;
+            }
+        }
+
+        if (mainRenderer != null)
+        {
+            originalSprite = mainRenderer.sprite;
+        }
+
+        Debug.Log($"[Player] ApplyCharacterAppearance index={safeIndex} appliedAnimator={appliedAnimator} appliedDownSprite={appliedDownSprite} on {(IsServer ? "Server" : "Client")} Owner:{OwnerClientId}");
+
+        UpdateVisibilityState();
     }
 
     private void UpdateNameUI(Unity.Collections.FixedString32Bytes newName)
@@ -353,7 +446,18 @@ public class Player : Character
             RaycastHit2D[] hits = Physics2D.RaycastAll(bottomCenter, Vector2.down, 0.15f);
             foreach (var hit in hits)
             {
-                if (hit.collider != null && !hit.collider.isTrigger && !hit.collider.CompareTag("Player"))
+                if (hit.collider == null || hit.collider.isTrigger)
+                {
+                    continue;
+                }
+
+                if (hit.collider.GetComponentInParent<Player>() != null)
+                {
+                    continue;
+                }
+
+                // Require a surface that actually faces upward so side wall contacts do not count as grounded.
+                if (hit.normal.y > 0.5f)
                 {
                     return true;
                 }

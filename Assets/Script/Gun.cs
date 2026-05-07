@@ -16,9 +16,18 @@ public class Gun : NetworkBehaviour
     public float bulletDamage = 20f;
     public float fireRate = 6f;
     public bool holdToFire = true;
+    public int bulletsPerShot = 1;
+    public float spreadAngle = 15f;
     public HandAim handAim;
     public float recoilAmount = 1f;
     [SerializeField] private int maxActiveBulletsPerShooter = 32;
+
+    // Gun-specific sounds
+    [Header("Gun Audio")]
+    public AudioClip gunFireClip;
+    public AudioClip reloadClip;
+    [Range(0f, 1f)] public float gunFireVolume = 0.8f;
+    [Range(0f, 1f)] public float reloadVolume = 0.6f;
 
     public int maxAmmo = 30;
     public float reloadTime = 1.5f;
@@ -92,7 +101,12 @@ public class Gun : NetworkBehaviour
     System.Collections.IEnumerator ReloadRoutine()
     {
         isReloading = true;
-        // Optional: play reload sound or animation here
+
+        // Play reload sound
+        if (gunFireClip != null)
+        {
+            PlayReloadSoundServerRpc(firePoint.position);
+        }
 
         yield return new WaitForSeconds(reloadTime);
 
@@ -130,20 +144,39 @@ public class Gun : NetworkBehaviour
             Destroy(flash, muzzleFlashDuration);
         }
 
-        if (clientBulletPrefab != null)
-        {
-            GameObject visualBullet = Instantiate(clientBulletPrefab, firePoint.position, Quaternion.identity);
-            ClientBullet cb = visualBullet.GetComponent<ClientBullet>();
-            if (cb != null) cb.Initialize(finalDirVisual, bulletSpeed, NetworkManager.Singleton.LocalClientId);
-        }
-
         if (bulletShellPrefab != null)
         {
             Transform ejectPoint = shellEjectionPoint != null ? shellEjectionPoint : (pivot != null ? pivot : firePoint);
             Instantiate(bulletShellPrefab, ejectPoint.position, Quaternion.Euler(0, 0, safeAngleVisual));
         }
 
-        ShootServerRpc(firePoint.position, dir, recoilJitter);
+        // Play gun fire sound locally
+        if (gunFireClip != null && SoundManager.Instance != null)
+        {
+            SoundManager.Instance.PlayGunSound(gunFireClip, firePoint.position, gunFireVolume);
+        }
+
+        int seed = Random.Range(int.MinValue, int.MaxValue);
+        System.Random prng = new System.Random(seed);
+
+        for (int i = 0; i < bulletsPerShot; i++)
+        {
+            float individualSpread = 0f;
+            if (bulletsPerShot > 1)
+            {
+                individualSpread = (float)(prng.NextDouble() * spreadAngle - (spreadAngle / 2f));
+            }
+
+            if (clientBulletPrefab != null)
+            {
+                Vector2 bulletDir = Quaternion.Euler(0, 0, individualSpread) * finalDirVisual;
+                GameObject visualBullet = Instantiate(clientBulletPrefab, firePoint.position, Quaternion.identity);
+                ClientBullet cb = visualBullet.GetComponent<ClientBullet>();
+                if (cb != null) cb.Initialize(bulletDir, bulletSpeed, NetworkManager.Singleton.LocalClientId);
+            }
+        }
+
+        ShootServerRpc(firePoint.position, dir, recoilJitter, seed);
     }
 
     bool CanServerShoot(ulong senderClientId)
@@ -182,7 +215,7 @@ public class Gun : NetworkBehaviour
     }
 
     [ServerRpc]
-    void ShootServerRpc(Vector2 pos, Vector2 dir, float recoilJitter, ServerRpcParams rpcParams = default)
+    void ShootServerRpc(Vector2 pos, Vector2 dir, float recoilJitter, int seed, ServerRpcParams rpcParams = default)
     {
         ulong senderClientId = rpcParams.Receive.SenderClientId;
         if (!CanServerShoot(senderClientId)) return;
@@ -191,7 +224,10 @@ public class Gun : NetworkBehaviour
         float safeRecoilJitter = Mathf.Clamp(recoilJitter, -maxJitter, maxJitter);
 
         // Notify other clients to play recoil and spawn visuals
-        PlayShootEffectsClientRpc(pos, dir, recoilAmount, safeRecoilJitter, senderClientId);
+        PlayShootEffectsClientRpc(pos, dir, recoilAmount, safeRecoilJitter, seed, senderClientId);
+
+        // Play fire sound for other clients
+        PlayFireSoundClientRpc(pos);
 
         if (serverBulletPrefab == null) return;
 
@@ -199,20 +235,31 @@ public class Gun : NetworkBehaviour
         Vector2 finalDir = Quaternion.Euler(0, 0, safeRecoilJitter) * safeDir;
 
         float latencyCompensation = GetLatencyCompensationSeconds(senderClientId);
-        Vector2 compensatedPos = pos + (finalDir * bulletSpeed * latencyCompensation);
-        float angle = Mathf.Atan2(finalDir.y, finalDir.x) * Mathf.Rad2Deg;
+        System.Random prng = new System.Random(seed);
 
-        GameObject bullet = Instantiate(serverBulletPrefab, compensatedPos, Quaternion.Euler(0f, 0f, angle));
-
-        ServerBullet serverBullet = bullet.GetComponent<ServerBullet>();
-        if (serverBullet != null)
+        for (int i = 0; i < bulletsPerShot; i++)
         {
-            serverBullet.Initialize(finalDir, bulletSpeed, bulletDamage, senderClientId);
+            float individualSpread = 0f;
+            if (bulletsPerShot > 1)
+            {
+                individualSpread = (float)(prng.NextDouble() * spreadAngle - (spreadAngle / 2f));
+            }
+
+            Vector2 bulletDir = Quaternion.Euler(0, 0, individualSpread) * finalDir;
+            Vector2 compensatedPos = pos + (bulletDir * bulletSpeed * latencyCompensation);
+            float angle = Mathf.Atan2(bulletDir.y, bulletDir.x) * Mathf.Rad2Deg;
+
+            GameObject bullet = Instantiate(serverBulletPrefab, compensatedPos, Quaternion.Euler(0f, 0f, angle));
+            ServerBullet serverBullet = bullet.GetComponent<ServerBullet>();
+            if (serverBullet != null)
+            {
+                serverBullet.Initialize(bulletDir, bulletSpeed, bulletDamage, senderClientId);
+            }
         }
     }
 
     [ClientRpc]
-    void PlayShootEffectsClientRpc(Vector2 pos, Vector2 dir, float amount, float recoilJitter, ulong shooterId)
+    void PlayShootEffectsClientRpc(Vector2 pos, Vector2 dir, float amount, float recoilJitter, int seed, ulong shooterId)
     {
         // Owner already played recoil and spawned its own visual bullet instantly
         if (NetworkManager.Singleton.LocalClientId == shooterId) return;
@@ -235,20 +282,66 @@ public class Gun : NetworkBehaviour
             Destroy(flash, muzzleFlashDuration);
         }
 
-        if (clientBulletPrefab != null)
-        {
-            GameObject visualBullet = Instantiate(clientBulletPrefab, spawnPos, Quaternion.identity);
-            ClientBullet cb = visualBullet.GetComponent<ClientBullet>();
-            if (cb != null) cb.Initialize(finalDir, bulletSpeed, shooterId);
-        }
-
         if (bulletShellPrefab != null)
         {
             Transform ejectPoint = shellEjectionPoint != null ? shellEjectionPoint : (pivot != null ? pivot : firePoint);
             Vector3 finalEjectPos = ejectPoint != null ? ejectPoint.position : spawnPos;
             Instantiate(bulletShellPrefab, finalEjectPos, Quaternion.Euler(0, 0, safeAngleVisual));
         }
+
+        if (clientBulletPrefab != null)
+        {
+            System.Random prng = new System.Random(seed);
+            for (int i = 0; i < bulletsPerShot; i++)
+            {
+                float individualSpread = 0f;
+                if (bulletsPerShot > 1)
+                {
+                    individualSpread = (float)(prng.NextDouble() * spreadAngle - (spreadAngle / 2f));
+                }
+
+                Vector2 bulletDir = Quaternion.Euler(0, 0, individualSpread) * finalDir;
+                GameObject visualBullet = Instantiate(clientBulletPrefab, spawnPos, Quaternion.identity);
+                ClientBullet cb = visualBullet.GetComponent<ClientBullet>();
+                if (cb != null) cb.Initialize(bulletDir, bulletSpeed, shooterId);
+            }
+        }
     }
 
+    [ServerRpc]
+    void PlayReloadSoundServerRpc(Vector3 gunPosition)
+    {
+        // Broadcast reload sound to all clients
+        PlayReloadSoundClientRpc(gunPosition);
+    }
+
+    [ClientRpc]
+    void PlayReloadSoundClientRpc(Vector3 gunPosition)
+    {
+        // Play reload sound for all clients
+        if (reloadClip != null && SoundManager.Instance != null)
+        {
+            SoundManager.Instance.PlayGunSound(reloadClip, gunPosition, reloadVolume);
+        }
+    }
+
+    [ServerRpc]
+    void PlayFireSoundServerRpc(Vector3 gunPosition)
+    {
+        // Broadcast fire sound to all clients (except the shooter who already played it locally)
+        PlayFireSoundClientRpc(gunPosition);
+    }
+
+    [ClientRpc]
+    void PlayFireSoundClientRpc(Vector3 gunPosition)
+    {
+        // Only play if we're not the owner (owner already played it locally in Shoot())
+        if (IsOwner) return;
+
+        if (gunFireClip != null && SoundManager.Instance != null)
+        {
+            SoundManager.Instance.PlayGunSound(gunFireClip, gunPosition, gunFireVolume);
+        }
+    }
 
 }

@@ -15,6 +15,11 @@ public class HostGameManager
 
     private const int MaxConnections = 4;
     private const string GameSceneName = "GameScene";
+
+    public HostGameManager()
+    {
+    }
+
     public async Task StartHostAsync()
     {
         try

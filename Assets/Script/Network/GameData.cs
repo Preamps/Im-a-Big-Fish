@@ -6,6 +6,13 @@ public class GameData : MonoBehaviour
 
     public string JoinCode;
     public string PlayerName = "Player";
+    public const int CharacterCount = 4;
+    public int SelectedCharacterIndex;
+
+    public void SetSelectedCharacterIndex(int index)
+    {
+        SelectedCharacterIndex = Mathf.Clamp(index, 0, CharacterCount - 1);
+    }
 
     private void Awake()
     {
@@ -17,6 +24,7 @@ public class GameData : MonoBehaviour
 
         Instance = this;
         DontDestroyOnLoad(gameObject);
+        SetSelectedCharacterIndex(0);
     }
 
     // ✅ ตัวนี้สำคัญมาก

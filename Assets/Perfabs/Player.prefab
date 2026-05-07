@@ -27,8 +27,8 @@ Transform:
   m_GameObject: {fileID: 375151854654111339}
   serializedVersion: 2
   m_LocalRotation: {x: -0, y: -0, z: -0, w: 1}
-  m_LocalPosition: {x: 0.266, y: 0.047, z: 0}
-  m_LocalScale: {x: 0.80555, y: 0.80555, z: 0.80555}
+  m_LocalPosition: {x: 0.26600003, y: 0.04700019, z: 0}
+  m_LocalScale: {x: 0.8198082, y: 0.8198082, z: 0.8198082}
   m_ConstrainProportionsScale: 0
   m_Children:
   - {fileID: 628080110548018293}
@@ -84,7 +84,7 @@ SpriteRenderer:
   m_SortingLayer: 0
   m_SortingOrder: 9
   m_MaskInteraction: 0
-  m_Sprite: {fileID: -3593407067863244412, guid: e623add2d1a99374aa8ba06c000b9361, type: 3}
+  m_Sprite: {fileID: 21300000, guid: 3d5e97b858fbec54da0d0bc0612c8529, type: 3}
   m_Color: {r: 1, g: 1, b: 1, a: 1}
   m_FlipX: 0
   m_FlipY: 0
@@ -114,15 +114,25 @@ MonoBehaviour:
   muzzleFlashPrefab: {fileID: 4231662871266753733, guid: 3284df5f343671f4eb1fe859dd862a4b, type: 3}
   bulletShellPrefab: {fileID: 4068116059452685361, guid: 88edd84802c3c98498e074144c3b68b9, type: 3}
   shellEjectionPoint: {fileID: 738342985445266861}
+  gunshotClip: {fileID: 8300000, guid: a8bde51d409a6154ab794526fdc785b9, type: 3}
+  reloadClip: {fileID: 8300000, guid: 67a2811532cf1a44caa3cd5394877969, type: 3}
+  gunshotVolume: 0.6
+  reloadVolume: 0.5
+  gunshotIs3D: 1
+  reloadIs3D: 1
+  gunshotMaxDistance: 50
+  reloadMaxDistance: 5
   muzzleFlashDuration: 0.05
   bulletSpeed: 25
   bulletDamage: 20
   fireRate: 6
   holdToFire: 0
+  bulletsPerShot: 1
+  spreadAngle: 15
   handAim: {fileID: 3641096547895977303}
   recoilAmount: 3
   maxActiveBulletsPerShooter: 32
-  maxAmmo: 30
+  maxAmmo: 12
   reloadTime: 1.5
 --- !u!1 &2204090034340559749
 GameObject:
@@ -158,12 +168,12 @@ Transform:
   m_GameObject: {fileID: 2204090034340559749}
   serializedVersion: 2
   m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
-  m_LocalPosition: {x: 2.18, y: -2.42, z: 0}
-  m_LocalScale: {x: 0.6077468, y: 0.6077468, z: 0.6077468}
+  m_LocalPosition: {x: 0, y: 0, z: 0}
+  m_LocalScale: {x: 0.5077468, y: 0.5077468, z: 0.5077468}
   m_ConstrainProportionsScale: 0
   m_Children:
-  - {fileID: 5094123858473183714}
   - {fileID: 1384540140291545694}
+  - {fileID: 5094123858473183714}
   m_Father: {fileID: 0}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!212 &6308944485352149554
@@ -213,7 +223,7 @@ SpriteRenderer:
   m_GlobalIlluminationMeshLod: 0
   m_SortingLayerID: 0
   m_SortingLayer: 0
-  m_SortingOrder: 5
+  m_SortingOrder: 8
   m_MaskInteraction: 0
   m_Sprite: {fileID: 21300000, guid: cc0822ba7997e7541a0a5a4f7db4942f, type: 3}
   m_Color: {r: 1, g: 1, b: 1, a: 1}
@@ -238,7 +248,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Unity.Netcode.Runtime::Unity.Netcode.NetworkObject
   GlobalObjectIdHash: 4049071944
-  InScenePlacedSourceGlobalObjectIdHash: 0
+  InScenePlacedSourceGlobalObjectIdHash: 4049071944
   DeferredDespawnTick: 0
   Ownership: 1
   AlwaysReplicateAsRoot: 0
@@ -377,6 +387,16 @@ MonoBehaviour:
   downSprite: {fileID: 21300000, guid: 21adf005395df7d42b68e7f5553ddd6a, type: 3}
   hpRegenDelay: 5
   hpRegenRate: 2
+  characterAnimators:
+  - {fileID: 9100000, guid: c68eec388496a134084eba0b5da437f8, type: 2}
+  - {fileID: 9100000, guid: 5effa45e79b836f4bb2d5014ee8f4745, type: 2}
+  - {fileID: 9100000, guid: b81131c4a255e2c44a91f1babe268f6e, type: 2}
+  - {fileID: 9100000, guid: adc57301db7a097419ddd671358285d9, type: 2}
+  characterDownSprites:
+  - {fileID: 21300000, guid: 21adf005395df7d42b68e7f5553ddd6a, type: 3}
+  - {fileID: 21300000, guid: 6b25cb262f7c5f24e8486682c20830c6, type: 3}
+  - {fileID: 21300000, guid: 648e8e65957e57e43847db3ca2c137f0, type: 3}
+  - {fileID: 21300000, guid: 43a425654b140da4b8b9ca0de31b4df0, type: 3}
   playerName:
     m_InternalValue:
       utf8LengthInBytes: 0
@@ -456,8 +476,8 @@ MonoBehaviour:
   ShowTopMostFoldoutHeaderGroup: 1
   pivot: {fileID: 5094123858473183714}
   playerBody: {fileID: 1003974061664010030}
-  handOffsetRight: {x: -0.05, y: -0.4, z: 0}
-  handOffsetLeft: {x: -0.05, y: -0.4, z: 0}
+  handOffsetRight: {x: -0.5, y: -0.2, z: 0}
+  handOffsetLeft: {x: -0.5, y: -0.2, z: 0}
   moveThreshold: 0.05
   shakeAmount: 0.09
   shakeSpeed: 6.5
@@ -512,8 +532,8 @@ CapsuleCollider2D:
   m_UsedByEffector: 0
   m_CompositeOperation: 0
   m_CompositeOrder: 0
-  m_Offset: {x: 0.198121, y: -0.14479959}
-  m_Size: {x: 2.0668812, y: 5.206872}
+  m_Offset: {x: 0.19812098, y: 0.06558489}
+  m_Size: {x: 2.0668812, y: 4.786098}
   m_Direction: 0
 --- !u!1 &3176096931632812894
 GameObject:
@@ -540,7 +560,7 @@ Transform:
   m_GameObject: {fileID: 3176096931632812894}
   serializedVersion: 2
   m_LocalRotation: {x: -0, y: -0, z: -0, w: 1}
-  m_LocalPosition: {x: -2.88, y: 0.157, z: 0}
+  m_LocalPosition: {x: -2.278, y: 0.258, z: 0}
   m_LocalScale: {x: 0.4713554, y: 0.4713554, z: 0.4713554}
   m_ConstrainProportionsScale: 0
   m_Children: []
@@ -571,7 +591,7 @@ Transform:
   m_GameObject: {fileID: 6293336520964857256}
   serializedVersion: 2
   m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
-  m_LocalPosition: {x: -1.688, y: 0.27, z: 0}
+  m_LocalPosition: {x: -1.405, y: 0.325, z: 0}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children: []
@@ -611,7 +631,7 @@ RectTransform:
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
   m_AnchorMin: {x: 0.5, y: 0.5}
   m_AnchorMax: {x: 0.5, y: 0.5}
-  m_AnchoredPosition: {x: -527.8649, y: -299.14902}
+  m_AnchoredPosition: {x: -527.8574, y: -298.0578}
   m_SizeDelta: {x: 200, y: 50}
   m_Pivot: {x: 0.5, y: 0.5}
 --- !u!222 &8903254629973589745

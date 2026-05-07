@@ -1,5 +1,7 @@
 using TMPro;
 using UnityEngine;
+using UnityEngine.UI;
+using UnityEngine.Events;
 
 public class MainMenu : MonoBehaviour
 {
@@ -13,6 +15,17 @@ public class MainMenu : MonoBehaviour
     [SerializeField] private TMP_Text lobbyJoinCodeText;
     [SerializeField] private GameObject startGameButton;
     [SerializeField] private TMP_Text[] playerNamesTexts = new TMP_Text[4];
+    [SerializeField] private Button[] characterButtons = new Button[4];
+    [SerializeField] private Color characterButtonNormalColor = Color.white;
+    [SerializeField] private Color characterButtonSelectedColor = Color.green;
+    [SerializeField] private Button hostButton;
+    [SerializeField] private Button clientButton;
+
+    [Header("Anti-Spam Settings")]
+    [SerializeField] private float buttonCooldown = 1f;
+
+    private float lastHostButtonClickTime = -999f;
+    private float lastClientButtonClickTime = -999f;
 
     private void Start()
     {
@@ -29,6 +42,8 @@ public class MainMenu : MonoBehaviour
         {
             playerNameField.text = "Player" + UnityEngine.Random.Range(100, 1000);
         }
+
+        SetupCharacterButtons();
     }
 
     private void Update()
@@ -62,40 +77,151 @@ public class MainMenu : MonoBehaviour
         }
     }
 
-    public async void StartHost()
+    private void SetupCharacterButtons()
     {
-        if (playerNameField != null && !string.IsNullOrEmpty(playerNameField.text))
+        if (characterButtons == null || characterButtons.Length == 0)
         {
-            GameData.Instance.PlayerName = playerNameField.text;
+            return;
         }
 
-        await HostSingleton.Instance.GameManager.StartHostAsync();
+        for (int i = 0; i < characterButtons.Length; i++)
+        {
+            Button button = characterButtons[i];
+            if (button == null)
+            {
+                continue;
+            }
 
-        // Show lobby panel
-        if (menuPanel != null) menuPanel.SetActive(false);
-        if (lobbyPanel != null) lobbyPanel.SetActive(true);
+            int buttonIndex = i;
+            button.onClick.RemoveAllListeners();
+            button.onClick.AddListener(() => OnCharacterSelected(buttonIndex));
 
-        // Show code and start button for host
-        if (lobbyJoinCodeText != null) lobbyJoinCodeText.text = "Code: " + GameData.Instance.JoinCode;
-        if (startGameButton != null) startGameButton.SetActive(true);
+            TMP_Text buttonText = button.GetComponentInChildren<TMP_Text>();
+            if (buttonText != null)
+            {
+                buttonText.text = (buttonIndex + 1).ToString();
+            }
+        }
+
+        int selectedIndex = Mathf.Clamp(GameData.Instance != null ? GameData.Instance.SelectedCharacterIndex : 0, 0, GameData.CharacterCount - 1);
+        OnCharacterSelected(selectedIndex);
+    }
+
+    private void OnCharacterSelected(int value)
+    {
+        if (GameData.Instance == null)
+        {
+            return;
+        }
+
+        int safeIndex = Mathf.Clamp(value, 0, GameData.CharacterCount - 1);
+        GameData.Instance.SetSelectedCharacterIndex(safeIndex);
+        RefreshCharacterButtonVisuals(safeIndex);
+    }
+
+    private void RefreshCharacterButtonVisuals(int selectedIndex)
+    {
+        if (characterButtons == null)
+        {
+            return;
+        }
+
+        for (int i = 0; i < characterButtons.Length; i++)
+        {
+            Button button = characterButtons[i];
+            if (button == null)
+            {
+                continue;
+            }
+
+            ColorBlock colors = button.colors;
+            bool isSelected = i == selectedIndex;
+            Color targetColor = isSelected ? characterButtonSelectedColor : characterButtonNormalColor;
+
+            colors.normalColor = targetColor;
+            colors.selectedColor = targetColor;
+            colors.highlightedColor = targetColor;
+            colors.pressedColor = isSelected ? Color.Lerp(targetColor, Color.black, 0.15f) : Color.Lerp(targetColor, Color.black, 0.2f);
+            button.colors = colors;
+        }
+    }
+
+    public async void StartHost()
+    {
+        OnCharacterSelected(GameData.Instance != null ? GameData.Instance.SelectedCharacterIndex : 0);
+
+        // Anti-spam check
+        if (Time.time - lastHostButtonClickTime < buttonCooldown)
+        {
+            return;
+        }
+
+        lastHostButtonClickTime = Time.time;
+
+        // Disable button temporarily
+        if (hostButton != null) hostButton.interactable = false;
+
+        try
+        {
+            if (playerNameField != null && !string.IsNullOrEmpty(playerNameField.text))
+            {
+                GameData.Instance.PlayerName = playerNameField.text;
+            }
+
+            await HostSingleton.Instance.GameManager.StartHostAsync();
+
+            // Show lobby panel
+            if (menuPanel != null) menuPanel.SetActive(false);
+            if (lobbyPanel != null) lobbyPanel.SetActive(true);
+
+            // Show code and start button for host
+            if (lobbyJoinCodeText != null) lobbyJoinCodeText.text = "Code: " + GameData.Instance.JoinCode;
+            if (startGameButton != null) startGameButton.SetActive(true);
+        }
+        finally
+        {
+            // Re-enable button after cooldown
+            if (hostButton != null) hostButton.interactable = true;
+        }
     }
 
     public async void StartClient()
     {
-        if (playerNameField != null && !string.IsNullOrEmpty(playerNameField.text))
+        OnCharacterSelected(GameData.Instance != null ? GameData.Instance.SelectedCharacterIndex : 0);
+
+        // Anti-spam check
+        if (Time.time - lastClientButtonClickTime < buttonCooldown)
         {
-            GameData.Instance.PlayerName = playerNameField.text;
+            return;
         }
 
-        await ClientSingleton.Instance.GameManager.StartClientAsync(joinCodeField.text);
+        lastClientButtonClickTime = Time.time;
 
-        // Show lobby panel for client
-        if (menuPanel != null) menuPanel.SetActive(false);
-        if (lobbyPanel != null) lobbyPanel.SetActive(true);
+        // Disable button temporarily
+        if (clientButton != null) clientButton.interactable = false;
 
-        // Hide start button for client (only host can start)
-        if (lobbyJoinCodeText != null) lobbyJoinCodeText.text = "Code: " + joinCodeField.text;
-        if (startGameButton != null) startGameButton.SetActive(false);
+        try
+        {
+            if (playerNameField != null && !string.IsNullOrEmpty(playerNameField.text))
+            {
+                GameData.Instance.PlayerName = playerNameField.text;
+            }
+
+            await ClientSingleton.Instance.GameManager.StartClientAsync(joinCodeField.text);
+
+            // Show lobby panel for client
+            if (menuPanel != null) menuPanel.SetActive(false);
+            if (lobbyPanel != null) lobbyPanel.SetActive(true);
+
+            // Hide start button for client (only host can start)
+            if (lobbyJoinCodeText != null) lobbyJoinCodeText.text = "Code: " + joinCodeField.text;
+            if (startGameButton != null) startGameButton.SetActive(false);
+        }
+        finally
+        {
+            // Re-enable button after cooldown
+            if (clientButton != null) clientButton.interactable = true;
+        }
     }
 
     public void StartGame()

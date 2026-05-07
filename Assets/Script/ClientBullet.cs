@@ -3,6 +3,7 @@ using UnityEngine;
 public class ClientBullet : MonoBehaviour
 {
     [SerializeField] private float maxLifetimeSeconds = 2f;
+    [SerializeField] private GameObject hitEffectPrefab;
 
     private float despawnAtTime;
     private Vector2 direction;
@@ -49,6 +50,8 @@ public class ClientBullet : MonoBehaviour
                     if (charHit.CompareTag("Player")) continue;
 
                     // Found an enemy
+                    charHit.PlayLocalDamageFlash();
+                    SpawnHitEffect(hit.point, hit.normal, true);
                     Destroy(gameObject);
                     return;
                 }
@@ -56,11 +59,36 @@ public class ClientBullet : MonoBehaviour
                 if (hit.collider.isTrigger) continue; // Ignore triggers like aggro ranges
 
                 // Hit a wall
+                SpawnHitEffect(hit.point, hit.normal, false);
                 Destroy(gameObject);
                 return;
             }
         }
 
         transform.position += moveDelta;
+    }
+
+    private void SpawnHitEffect(Vector2 position, Vector2 normal, bool isEnemy)
+    {
+        if (hitEffectPrefab != null)
+        {
+            float angle = Mathf.Atan2(normal.y, normal.x) * Mathf.Rad2Deg;
+            GameObject effect = Instantiate(hitEffectPrefab, position, Quaternion.Euler(0, 0, angle));
+
+            if (isEnemy)
+            {
+                SpriteRenderer sr = effect.GetComponent<SpriteRenderer>();
+                if (sr != null) sr.color = Color.red;
+
+                ParticleSystem ps = effect.GetComponent<ParticleSystem>();
+                if (ps != null)
+                {
+                    var main = ps.main;
+                    main.startColor = Color.red;
+                }
+            }
+
+            Destroy(effect, 1f); // Adjust duration if needed
+        }
     }
 }
