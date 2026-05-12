@@ -1,3 +1,4 @@
+using System.Collections;
 using TMPro;
 using UnityEngine;
 using UnityEngine.UI;
@@ -20,6 +21,11 @@ public class MainMenu : MonoBehaviour
     [SerializeField] private Color characterButtonSelectedColor = Color.green;
     [SerializeField] private Button hostButton;
     [SerializeField] private Button clientButton;
+    private Button lobbyJoinCodeButton;
+    private string currentJoinCode = string.Empty;
+    [SerializeField] private float copyFeedbackDuration = 1.2f;
+    private Coroutine copyFeedbackRoutine;
+    private bool isShowingCopied = false;
 
     [Header("Anti-Spam Settings")]
     [SerializeField] private float buttonCooldown = 1f;
@@ -35,13 +41,28 @@ public class MainMenu : MonoBehaviour
         }
         Cursor.SetCursor(null, Vector2.zero, CursorMode.Auto);
 
+        if (SoundManager.Instance != null)
+        {
+            SoundManager.Instance.PlayMusic(SoundType.BackgroundMusic);
+        }
+
         if (menuPanel != null) menuPanel.SetActive(true);
         if (lobbyPanel != null) lobbyPanel.SetActive(false);
 
         if (playerNameField != null)
         {
-            playerNameField.text = "Player" + UnityEngine.Random.Range(100, 1000);
+            string savedName = GameData.Instance != null ? GameData.Instance.PlayerName : string.Empty;
+            if (!string.IsNullOrEmpty(savedName) && savedName != "Player")
+            {
+                playerNameField.text = savedName;
+            }
+            else
+            {
+                playerNameField.text = "Player" + UnityEngine.Random.Range(100, 1000);
+            }
         }
+
+        SetupLobbyJoinCodeCopy();
 
         SetupCharacterButtons();
     }
@@ -60,19 +81,29 @@ public class MainMenu : MonoBehaviour
 
         Player[] allPlayers = Object.FindObjectsByType<Player>(FindObjectsSortMode.None);
 
+        // Ensure host (lowest OwnerClientId) is first, then ascending by OwnerClientId
+        System.Array.Sort(allPlayers, (a, b) => a.OwnerClientId.CompareTo(b.OwnerClientId));
+
         for (int i = 0; i < playerNamesTexts.Length; i++)
         {
             if (playerNamesTexts[i] == null) continue;
 
-            if (i < allPlayers.Length)
+            if (i < allPlayers.Length && allPlayers[i] != null && allPlayers[i].IsSpawned)
             {
-                playerNamesTexts[i].text = allPlayers[i].playerName.Value.ToString();
+                string displayName = string.IsNullOrEmpty(allPlayers[i].playerName.Value.ToString())
+                    ? $"Player {(allPlayers[i].OwnerClientId + 1)}"
+                    : allPlayers[i].playerName.Value.ToString();
+
+                playerNamesTexts[i].text = displayName;
+                // All occupied lobby slots should be green
+                playerNamesTexts[i].color = Color.green;
                 playerNamesTexts[i].gameObject.SetActive(true);
             }
             else
             {
                 playerNamesTexts[i].text = "Waiting...";
-                // Keep it active but show "Waiting..." or you can disable it
+                playerNamesTexts[i].color = Color.white;
+                playerNamesTexts[i].gameObject.SetActive(true);
             }
         }
     }
@@ -146,6 +177,73 @@ public class MainMenu : MonoBehaviour
         }
     }
 
+    private void SetupLobbyJoinCodeCopy()
+    {
+        if (lobbyJoinCodeText == null)
+        {
+            return;
+        }
+
+        lobbyJoinCodeButton = lobbyJoinCodeText.GetComponent<Button>();
+        if (lobbyJoinCodeButton == null)
+        {
+            lobbyJoinCodeButton = lobbyJoinCodeText.gameObject.AddComponent<Button>();
+        }
+
+        lobbyJoinCodeButton.transition = Selectable.Transition.None;
+        lobbyJoinCodeButton.targetGraphic = lobbyJoinCodeText;
+        lobbyJoinCodeButton.onClick.RemoveAllListeners();
+        lobbyJoinCodeButton.onClick.AddListener(CopyLobbyJoinCode);
+    }
+
+    private void SetLobbyJoinCode(string joinCode)
+    {
+        currentJoinCode = joinCode ?? string.Empty;
+        if (lobbyJoinCodeText != null)
+        {
+            if (!isShowingCopied)
+            {
+                lobbyJoinCodeText.text = "Code: " + currentJoinCode;
+            }
+        }
+    }
+
+    private void CopyLobbyJoinCode()
+    {
+        if (string.IsNullOrEmpty(currentJoinCode))
+        {
+            return;
+        }
+
+        GUIUtility.systemCopyBuffer = currentJoinCode;
+        ShowCopiedFeedback();
+    }
+
+    private void ShowCopiedFeedback()
+    {
+        if (lobbyJoinCodeText == null)
+        {
+            return;
+        }
+
+        if (copyFeedbackRoutine != null)
+        {
+            StopCoroutine(copyFeedbackRoutine);
+        }
+
+        copyFeedbackRoutine = StartCoroutine(CopyFeedbackRoutine());
+    }
+
+    private IEnumerator CopyFeedbackRoutine()
+    {
+        isShowingCopied = true;
+        lobbyJoinCodeText.text = "Copied!";
+        yield return new WaitForSeconds(copyFeedbackDuration);
+        lobbyJoinCodeText.text = "Code: " + currentJoinCode;
+        isShowingCopied = false;
+        copyFeedbackRoutine = null;
+    }
+
     public async void StartHost()
     {
         OnCharacterSelected(GameData.Instance != null ? GameData.Instance.SelectedCharacterIndex : 0);
@@ -175,7 +273,7 @@ public class MainMenu : MonoBehaviour
             if (lobbyPanel != null) lobbyPanel.SetActive(true);
 
             // Show code and start button for host
-            if (lobbyJoinCodeText != null) lobbyJoinCodeText.text = "Code: " + GameData.Instance.JoinCode;
+            SetLobbyJoinCode(GameData.Instance.JoinCode);
             if (startGameButton != null) startGameButton.SetActive(true);
         }
         finally
@@ -214,7 +312,7 @@ public class MainMenu : MonoBehaviour
             if (lobbyPanel != null) lobbyPanel.SetActive(true);
 
             // Hide start button for client (only host can start)
-            if (lobbyJoinCodeText != null) lobbyJoinCodeText.text = "Code: " + joinCodeField.text;
+            SetLobbyJoinCode(joinCodeField.text);
             if (startGameButton != null) startGameButton.SetActive(false);
         }
         finally

@@ -197,28 +197,26 @@ MonoBehaviour:
   ShowTopMostFoldoutHeaderGroup: 1
   firePoint: {fileID: 7050914104569762838}
   pivot: {fileID: 4676118290747067439}
-  serverBulletPrefab: {fileID: 969277354531038930, guid: c9ac432285ba8c24eaf0cc7e3d8de9d8, type: 3}
+  serverBulletPrefab: {fileID: 969277354531038930, guid: e0d5fc856c3a1d446b99ebe4b8fa5b0c, type: 3}
   clientBulletPrefab: {fileID: 969277354531038930, guid: c5c98cf74e0635e42816c2188dea97c7, type: 3}
   muzzleFlashPrefab: {fileID: 4231662871266753733, guid: 673dade7ade8a544bab518e664e26697, type: 3}
+  muzzleLightPrefab: {fileID: 8741769964866471468, guid: 1c131779af8cef14a88edf4470f69f95, type: 3}
   bulletShellPrefab: {fileID: 4068116059452685361, guid: 88edd84802c3c98498e074144c3b68b9, type: 3}
   shellEjectionPoint: {fileID: 4231119442683542920}
-  gunshotClip: {fileID: 8300000, guid: e8f875df6fe60c846a38b3acc9a4ec7a, type: 3}
-  reloadClip: {fileID: 8300000, guid: 81dd870d00c8459479b0857e556cb176, type: 3}
-  gunshotVolume: 0.6
-  reloadVolume: 0.15
-  gunshotIs3D: 1
-  reloadIs3D: 1
-  gunshotMaxDistance: 50
-  reloadMaxDistance: 10
   muzzleFlashDuration: 0.05
-  bulletSpeed: 30
+  muzzleLightDuration: 0.08
+  bulletSpeed: 35
   bulletDamage: 40
   fireRate: 9.5
   holdToFire: 1
   bulletsPerShot: 1
-  spreadAngle: 28
+  spreadAngle: 1
   handAim: {fileID: 0}
-  recoilAmount: 2.5
+  recoilAmount: 2
   maxActiveBulletsPerShooter: 32
+  gunFireClip: {fileID: 8300000, guid: e8f875df6fe60c846a38b3acc9a4ec7a, type: 3}
+  reloadClip: {fileID: 8300000, guid: 81dd870d00c8459479b0857e556cb176, type: 3}
+  gunFireVolume: 0.8
+  reloadVolume: 0.15
   maxAmmo: 40
   reloadTime: 2

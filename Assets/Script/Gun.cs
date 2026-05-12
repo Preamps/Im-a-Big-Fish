@@ -9,9 +9,11 @@ public class Gun : NetworkBehaviour
     public GameObject serverBulletPrefab;
     public GameObject clientBulletPrefab;
     public GameObject muzzleFlashPrefab;
+    public GameObject muzzleLightPrefab;
     public GameObject bulletShellPrefab;
     public Transform shellEjectionPoint;
     public float muzzleFlashDuration = 0.1f;
+    public float muzzleLightDuration = 0.08f;
     public float bulletSpeed = 20f;
     public float bulletDamage = 20f;
     public float fireRate = 6f;
@@ -71,6 +73,23 @@ public class Gun : NetworkBehaviour
         ResolveHandAim();
     }
 
+    public int AddAmmo(int amount)
+    {
+        if (amount <= 0)
+        {
+            return 0;
+        }
+
+        int previousAmmo = currentAmmo;
+        currentAmmo = Mathf.Min(maxAmmo, currentAmmo + amount);
+        return currentAmmo - previousAmmo;
+    }
+
+    public void RefillAmmo()
+    {
+        currentAmmo = maxAmmo;
+    }
+
     void Update()
     {
         if (handAim == null) ResolveHandAim();
@@ -103,9 +122,9 @@ public class Gun : NetworkBehaviour
         isReloading = true;
 
         // Play reload sound
-        if (gunFireClip != null)
+        if (reloadClip != null)
         {
-            PlayReloadSoundServerRpc(firePoint.position);
+            PlayReloadSoundServerRpc();
         }
 
         yield return new WaitForSeconds(reloadTime);
@@ -144,6 +163,12 @@ public class Gun : NetworkBehaviour
             Destroy(flash, muzzleFlashDuration);
         }
 
+        if (muzzleLightPrefab != null)
+        {
+            GameObject lightObj = Instantiate(muzzleLightPrefab, firePoint.position, Quaternion.Euler(0, 0, safeAngleVisual));
+            Destroy(lightObj, muzzleLightDuration);
+        }
+
         if (bulletShellPrefab != null)
         {
             Transform ejectPoint = shellEjectionPoint != null ? shellEjectionPoint : (pivot != null ? pivot : firePoint);
@@ -172,7 +197,7 @@ public class Gun : NetworkBehaviour
                 Vector2 bulletDir = Quaternion.Euler(0, 0, individualSpread) * finalDirVisual;
                 GameObject visualBullet = Instantiate(clientBulletPrefab, firePoint.position, Quaternion.identity);
                 ClientBullet cb = visualBullet.GetComponent<ClientBullet>();
-                if (cb != null) cb.Initialize(bulletDir, bulletSpeed, NetworkManager.Singleton.LocalClientId);
+                if (cb != null) cb.Initialize(bulletDir, bulletSpeed, bulletDamage, NetworkManager.Singleton.LocalClientId);
             }
         }
 
@@ -282,6 +307,12 @@ public class Gun : NetworkBehaviour
             Destroy(flash, muzzleFlashDuration);
         }
 
+        if (muzzleLightPrefab != null)
+        {
+            GameObject lightObj = Instantiate(muzzleLightPrefab, spawnPos, Quaternion.Euler(0, 0, safeAngleVisual));
+            Destroy(lightObj, muzzleLightDuration);
+        }
+
         if (bulletShellPrefab != null)
         {
             Transform ejectPoint = shellEjectionPoint != null ? shellEjectionPoint : (pivot != null ? pivot : firePoint);
@@ -303,25 +334,25 @@ public class Gun : NetworkBehaviour
                 Vector2 bulletDir = Quaternion.Euler(0, 0, individualSpread) * finalDir;
                 GameObject visualBullet = Instantiate(clientBulletPrefab, spawnPos, Quaternion.identity);
                 ClientBullet cb = visualBullet.GetComponent<ClientBullet>();
-                if (cb != null) cb.Initialize(bulletDir, bulletSpeed, shooterId);
+                if (cb != null) cb.Initialize(bulletDir, bulletSpeed, bulletDamage, shooterId);
             }
         }
     }
 
     [ServerRpc]
-    void PlayReloadSoundServerRpc(Vector3 gunPosition)
+    void PlayReloadSoundServerRpc()
     {
         // Broadcast reload sound to all clients
-        PlayReloadSoundClientRpc(gunPosition);
+        PlayReloadSoundClientRpc();
     }
 
     [ClientRpc]
-    void PlayReloadSoundClientRpc(Vector3 gunPosition)
+    void PlayReloadSoundClientRpc()
     {
         // Play reload sound for all clients
         if (reloadClip != null && SoundManager.Instance != null)
         {
-            SoundManager.Instance.PlayGunSound(reloadClip, gunPosition, reloadVolume);
+            SoundManager.Instance.PlayGunSoundFollowingTransform(reloadClip, transform, reloadVolume);
         }
     }
 

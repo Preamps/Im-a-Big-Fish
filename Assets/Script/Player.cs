@@ -40,6 +40,9 @@ public class Player : Character
     private GunPickup nearbyPickup;
     public GunPickup NearbyPickup => nearbyPickup;
 
+    private AmmoPickup nearbyAmmoPickup;
+    public AmmoPickup NearbyAmmoPickup => nearbyAmmoPickup;
+
     private PurchasableBlockade nearbyBlockade;
     public PurchasableBlockade NearbyBlockade => nearbyBlockade;
 
@@ -97,14 +100,29 @@ public class Player : Character
             NetworkVariableReadPermission.Everyone,
             NetworkVariableWritePermission.Server
         );
+    private NetworkVariable<float> DownTimerRemaining =
+        new NetworkVariable<float>(
+            0f,
+            NetworkVariableReadPermission.Everyone,
+            NetworkVariableWritePermission.Server
+        );
 
     [Header("UI")]
     [SerializeField] private TMP_Text nameText;
+    [Header("Revive Icon")]
+    [SerializeField] private SpriteRenderer reviveIconRenderer;
+    [SerializeField] private float reviveIconHeightOffset = 0.6f;
+    [SerializeField] private Color reviveIconStartColor = new Color(1f, 0.9f, 0.2f, 1f);
+    [SerializeField] private Color reviveIconEndColor = new Color(1f, 0f, 0f, 1f);
+    [SerializeField] private float downDuration = 15f;
 
     private CameraFollow camFollow;
 
     private bool isInLobby = false;
+    private bool hasSpawnedInGame = false;
+    private float ignoreNetworkPositionUntil = 0f;
     private float downTimer = 0f;
+    private bool isSpawningVisualLock = false;
 
     private void Awake()
     {
@@ -158,24 +176,45 @@ public class Player : Character
 
     private void CheckLobbyState(string sceneName)
     {
+        bool wasInLobby = isInLobby;
         isInLobby = (sceneName != "GameScene");
+
+        if (!isInLobby && (!hasSpawnedInGame || wasInLobby))
+        {
+            hasSpawnedInGame = false;
+            isSpawningVisualLock = true;
+            SetVisualsEnabled(false);
+
+            if (rb != null)
+            {
+                rb.linearVelocity = Vector2.zero;
+                rb.simulated = false;
+                rb.interpolation = RigidbodyInterpolation2D.None;
+            }
+        }
+
         UpdateVisibilityState();
     }
 
     private void UpdateVisibilityState()
     {
-        bool hidePlayer = isInLobby || IsDead.Value;
+        if (isSpawningVisualLock) return; // Completely block state from changing visuals while hidden!
+
+        bool hidePlayer = isInLobby || IsDead.Value || (!isInLobby && !hasSpawnedInGame);
         ApplyDeadState(hidePlayer);
         ApplyDownState(IsDown.Value);
+        UpdateReviveIcon();
     }
 
     private void Update()
     {
         if (isInLobby) return;
+        UpdateReviveIcon();
 
         if (IsServer && !IsDead.Value && IsDown.Value)
         {
             downTimer -= Time.deltaTime;
+            DownTimerRemaining.Value = Mathf.Max(0f, downTimer);
             if (downTimer <= 0f)
             {
                 base.Die();
@@ -271,63 +310,39 @@ public class Player : Character
         IsDown.OnValueChanged += OnDownStateChanged;
         playerName.OnValueChanged += OnPlayerNameChanged;
         characterIndex.OnValueChanged += OnCharacterIndexChanged;
-        UpdateVisibilityState();
-        UpdateNameUI(playerName.Value);
 
-        // Ensure current index is applied immediately (in case value was set before listener ran)
+        // Ensure character visuals apply before updating visibility
         ApplyCharacterAppearance(characterIndex.Value);
+        UpdateNameUI(playerName.Value);
 
         if (IsOwner)
         {
             playerName.Value = GameData.Instance.PlayerName;
-            // Owner writes the chosen character index directly so it syncs to server/other clients
             characterIndex.Value = Mathf.Clamp(GameData.Instance.SelectedCharacterIndex, 0, GameData.CharacterCount - 1);
             netMoveInput.Value = moveInput;
-            netPosition.Value = rb.position;
+            netPosition.Value = transform.position; // Ensure initial value matches the custom spawn point!
             lastSentMoveInput = moveInput;
-            lastSentPosition = rb.position;
+            lastSentPosition = transform.position;
             hasSentMoveInput = true;
             hasSentPosition = true;
         }
         else
         {
-            rb.position = netPosition.Value;
+            // Note: If using Custom Spawning, transform.position is ALREADY correct because the server instantiated it there!
+            // But we still update the network variables just in case
+            transform.position = IsServer ? transform.position : netPosition.Value;
+            rb.position = transform.position;
+            remoteSmoothVelocity = Vector2.zero;
         }
 
-        // Ignore collisions with all other currently spawned players
-        Player[] allPlayers = Object.FindObjectsByType<Player>(FindObjectsSortMode.None);
-        foreach (Player p in allPlayers)
-        {
-            if (p == this) continue;
-            if (p.playerColliders == null || this.playerColliders == null) continue;
+        // Delay updating visibility to guarantee variables are parsed for 1 frame
+        hasSpawnedInGame = true;
+        SetupIgnoreCollisions();
 
-            foreach (var myCol in this.playerColliders)
-            {
-                foreach (var otherCol in p.playerColliders)
-                {
-                    if (myCol != null && otherCol != null && myCol.gameObject.activeInHierarchy && otherCol.gameObject.activeInHierarchy)
-                    {
-                        Physics2D.IgnoreCollision(myCol, otherCol, true);
-                    }
-                }
-            }
-        }
-
-        // Ignore collisions with all currently spawned enemies
-        Enemy[] allEnemies = Object.FindObjectsByType<Enemy>(FindObjectsSortMode.None);
-        foreach (Enemy e in allEnemies)
-        {
-            Collider2D eCol = e.GetComponent<Collider2D>();
-            if (eCol == null || this.playerColliders == null) continue;
-
-            foreach (var myCol in this.playerColliders)
-            {
-                if (myCol != null && myCol.gameObject.activeInHierarchy && e.gameObject.activeInHierarchy)
-                {
-                    Physics2D.IgnoreCollision(myCol, eCol, true);
-                }
-            }
-        }
+        // Hide visuals for 0.2s when the game starts to avoid seeing them at 0,0,0
+        isSpawningVisualLock = true;
+        SetVisualsEnabled(false);
+        Invoke(nameof(ShowVisuals), 0.6f);
 
         if (!IsOwner) return;
 
@@ -403,6 +418,7 @@ public class Player : Character
         Debug.Log($"[Player] ApplyCharacterAppearance index={safeIndex} appliedAnimator={appliedAnimator} appliedDownSprite={appliedDownSprite} on {(IsServer ? "Server" : "Client")} Owner:{OwnerClientId}");
 
         UpdateVisibilityState();
+        UpdateReviveIcon();
     }
 
     private void UpdateNameUI(Unity.Collections.FixedString32Bytes newName)
@@ -502,6 +518,14 @@ public class Player : Character
                     BuyBlockadeServerRpc(blockadeNetObj.NetworkObjectId);
                 }
             }
+            else if (nearbyAmmoPickup != null)
+            {
+                NetworkObject ammoNetObj = nearbyAmmoPickup.GetComponent<NetworkObject>();
+                if (ammoNetObj != null)
+                {
+                    RequestAmmoPickupServerRpc(ammoNetObj.NetworkObjectId);
+                }
+            }
         }
 
         if (Input.GetKeyDown(KeyCode.F) && nearbyDownedPlayer != null && nearbyDownedPlayer.IsDown.Value)
@@ -551,13 +575,26 @@ public class Player : Character
 
     void SmoothRemoteMovement()
     {
+        if (Time.time < ignoreNetworkPositionUntil) return;
+
         Vector2 targetPosition = netPosition.Value;
-        rb.position = Vector2.SmoothDamp(
-            rb.position,
-            targetPosition,
-            ref remoteSmoothVelocity,
-            Mathf.Max(0.01f, remoteSmoothTime)
-        );
+
+        // If distance is large (teleport/respawn), snap instantly instead of sliding across screen
+        if (Vector2.Distance(rb.position, targetPosition) > 2f)
+        {
+            transform.position = targetPosition;
+            rb.position = targetPosition;
+            remoteSmoothVelocity = Vector2.zero;
+        }
+        else
+        {
+            rb.position = Vector2.SmoothDamp(
+                rb.position,
+                targetPosition,
+                ref remoteSmoothVelocity,
+                Mathf.Max(0.01f, remoteSmoothTime)
+            );
+        }
     }
 
     void HandleAnimation()
@@ -586,6 +623,7 @@ public class Player : Character
             textScale.x = Mathf.Abs(textScale.x) * Mathf.Sign(scale.x);
             nameText.transform.localScale = textScale;
         }
+
     }
 
     private void OnTriggerEnter2D(Collider2D col)
@@ -602,6 +640,12 @@ public class Player : Character
         {
             nearbyBlockade = blockade;
         }
+
+        AmmoPickup ammoPickup = col.GetComponent<AmmoPickup>();
+        if (ammoPickup != null)
+        {
+            nearbyAmmoPickup = ammoPickup;
+        }
     }
 
     private void OnTriggerExit2D(Collider2D col)
@@ -616,6 +660,11 @@ public class Player : Character
         {
             nearbyBlockade = null;
         }
+
+        if (nearbyAmmoPickup != null && col.gameObject == nearbyAmmoPickup.gameObject)
+        {
+            nearbyAmmoPickup = null;
+        }
     }
 
     private void OnCollisionEnter2D(Collision2D col)
@@ -626,6 +675,12 @@ public class Player : Character
         {
             nearbyBlockade = blockade;
         }
+
+        AmmoPickup ammoPickup = col.gameObject.GetComponent<AmmoPickup>();
+        if (ammoPickup != null)
+        {
+            nearbyAmmoPickup = ammoPickup;
+        }
     }
 
     private void OnCollisionExit2D(Collision2D col)
@@ -634,6 +689,11 @@ public class Player : Character
         if (nearbyBlockade != null && col.gameObject == nearbyBlockade.gameObject)
         {
             nearbyBlockade = null;
+        }
+
+        if (nearbyAmmoPickup != null && col.gameObject == nearbyAmmoPickup.gameObject)
+        {
+            nearbyAmmoPickup = null;
         }
     }
 
@@ -647,6 +707,8 @@ public class Player : Character
 
         Money.Value -= blockade.price;
 
+        PlayBlockadePurchaseSoundClientRpc(blockadeObj.transform.position);
+
         blockadeObj.Despawn(true);
     }
 
@@ -659,6 +721,7 @@ public class Player : Character
         if (pickup == null || pickup.gunPrefab == null || Money.Value < pickup.price) return;
 
         Money.Value -= pickup.price;
+        PlayGunPickupSoundClientRpc(pickupObj.transform.position);
 
         // Find existing gun and mount point
         Gun oldGun = GetComponentInChildren<Gun>(true);
@@ -699,6 +762,24 @@ public class Player : Character
         UpdatePlayerGunsClientRpc();
     }
 
+    [ServerRpc]
+    private void RequestAmmoPickupServerRpc(ulong ammoPickupNetworkObjectId)
+    {
+        if (!NetworkManager.Singleton.SpawnManager.SpawnedObjects.TryGetValue(ammoPickupNetworkObjectId, out NetworkObject ammoPickupObj)) return;
+
+        AmmoPickup ammoPickup = ammoPickupObj.GetComponent<AmmoPickup>();
+        if (ammoPickup == null || ammoPickup.ammoAmount <= 0) return;
+
+        Gun gun = GetComponentInChildren<Gun>(true);
+        if (gun == null) return;
+
+        int addedAmmo = gun.AddAmmo(ammoPickup.ammoAmount);
+        if (addedAmmo <= 0) return;
+
+        PlayAmmoPickupSoundClientRpc(ammoPickupObj.transform.position);
+        ammoPickupObj.Despawn(true);
+    }
+
     [ClientRpc]
     private void DestroyNonNetworkedGunsClientRpc()
     {
@@ -723,14 +804,92 @@ public class Player : Character
         UpdateVisibilityState(); // Re-apply visual state to new gun
     }
 
+    [ClientRpc]
+    private void PlayGunPickupSoundClientRpc(Vector3 worldPosition)
+    {
+        if (SoundManager.Instance != null)
+        {
+            SoundManager.Instance.PlaySound(SoundType.GunPickup, worldPosition);
+        }
+    }
+
+    [ClientRpc]
+    private void PlayBlockadePurchaseSoundClientRpc(Vector3 worldPosition)
+    {
+        if (SoundManager.Instance != null)
+        {
+            SoundManager.Instance.PlaySound(SoundType.BlockadePurchase, worldPosition);
+        }
+    }
+
+    [ClientRpc]
+    private void PlayAmmoPickupSoundClientRpc(Vector3 worldPosition)
+    {
+        if (SoundManager.Instance != null)
+        {
+            SoundManager.Instance.PlaySound(SoundType.AmmoPickup, worldPosition);
+        }
+    }
+
+    [ClientRpc]
+    private void ShowBloodScreenClientRpc()
+    {
+        // Only show blood screen for the player who actually took damage
+        if (!IsOwner) return;
+
+        BloodScreenUI bloodScreenUI = Object.FindFirstObjectByType<BloodScreenUI>();
+        if (bloodScreenUI != null)
+        {
+            bloodScreenUI.ShowBloodScreen();
+        }
+    }
+
     private void OnDeadStateChanged(bool previousValue, bool newValue)
     {
-        UpdateVisibilityState();
+        if (newValue == true)
+        {
+            // Only automatically update visuals if they are dying.
+            // When reviving (newValue == false), we ignore it!
+            // We wait for ApplyRespawnClientRpc to safely teleport and show them.
+            UpdateVisibilityState();
+        }
     }
 
     private void OnDownStateChanged(bool previousValue, bool newValue)
     {
         UpdateVisibilityState();
+    }
+
+    private void UpdateReviveIcon()
+    {
+        if (reviveIconRenderer == null)
+        {
+            return;
+        }
+
+        bool show = IsDown.Value && !IsDead.Value && !isInLobby && hasSpawnedInGame;
+        reviveIconRenderer.enabled = show;
+        if (!show)
+        {
+            return;
+        }
+
+        float height = reviveIconHeightOffset;
+        if (mainRenderer != null)
+        {
+            height += mainRenderer.bounds.extents.y;
+        }
+
+        Vector3 basePos = transform.position;
+        reviveIconRenderer.transform.position = new Vector3(basePos.x, basePos.y + height, basePos.z);
+
+        Vector3 iconScale = reviveIconRenderer.transform.localScale;
+        iconScale.x = Mathf.Abs(iconScale.x) * Mathf.Sign(transform.localScale.x);
+        reviveIconRenderer.transform.localScale = iconScale;
+
+        float safeDownDuration = Mathf.Max(0.01f, downDuration);
+        float t = Mathf.InverseLerp(0f, safeDownDuration, DownTimerRemaining.Value);
+        reviveIconRenderer.color = Color.Lerp(reviveIconEndColor, reviveIconStartColor, t);
     }
 
     private void ApplyDownState(bool isDown)
@@ -774,6 +933,10 @@ public class Player : Character
         {
             rb.linearVelocity = Vector2.zero;
             rb.simulated = !isDead;
+            if (isDead)
+            {
+                rb.interpolation = RigidbodyInterpolation2D.None; // Stop smoothing while dead
+            }
         }
 
         if (animator != null)
@@ -826,12 +989,19 @@ public class Player : Character
         lastDamagerId = shooterId;
         Health.Value = Mathf.Max(0f, Health.Value - safeDamage);
 
+        // Play player damage sound
+        PlayDamageSoundClientRpc(transform.position, SoundType.PlayerDamage);
+
+        // Show blood screen effect
+        ShowBloodScreenClientRpc();
+
         if (Health.Value <= 0)
         {
             if (!IsDown.Value)
             {
                 IsDown.Value = true;
-                downTimer = 15f; // Start down timer
+                downTimer = Mathf.Max(0.01f, downDuration); // Start down timer
+                DownTimerRemaining.Value = downTimer;
                 //Health.Value = 30f; // Give them some health to survive being down
             }
             else
@@ -848,12 +1018,14 @@ public class Player : Character
         if (!IsDown.Value)
         {
             IsDown.Value = true;
-            downTimer = 15f;
+            downTimer = Mathf.Max(0.01f, downDuration);
+            DownTimerRemaining.Value = downTimer;
             //Health.Value = 30f; // Survive as downed temporarily
             return; // don't call base.Die() yet
         }
 
         IsDown.Value = false;
+        DownTimerRemaining.Value = 0f;
         base.Die();
     }
 
@@ -867,6 +1039,7 @@ public class Player : Character
         {
             p.Health.Value = 50f; // Revive health
             p.IsDown.Value = false;
+            p.DownTimerRemaining.Value = 0f;
         }
     }
 
@@ -874,24 +1047,119 @@ public class Player : Character
     {
         IsDown.Value = false;
         base.ServerRespawn(worldPosition);
+        DownTimerRemaining.Value = 0f;
         ApplyRespawnClientRpc(worldPosition);
     }
 
     [ClientRpc]
     private void ApplyRespawnClientRpc(Vector3 worldPosition)
     {
-        if (rb == null)
+        hasSpawnedInGame = true;
+        ignoreNetworkPositionUntil = Time.time + 1.0f; // Give plenty of time for network packets to catch up
+
+        // Hide visuals before moving to avoid visible warps on other clients.
+        isSpawningVisualLock = true;
+        SetVisualsEnabled(false);
+
+        if (rb != null)
         {
-            return;
+            // Lock interpolation so the warp is instant
+            rb.interpolation = RigidbodyInterpolation2D.None;
+
+            rb.simulated = false;
+
+            // Teleport coordinate
+            transform.position = worldPosition;
+            rb.position = worldPosition;
+
+            rb.simulated = true;
+            rb.linearVelocity = Vector2.zero;
         }
 
-        rb.position = worldPosition;
+        remoteSmoothVelocity = Vector2.zero;
 
         if (IsOwner)
         {
             netPosition.Value = worldPosition;
             lastSentPosition = worldPosition;
             hasSentPosition = true;
+        }
+
+        // Apply state fully
+        gameObject.SetActive(true);
+        SetupIgnoreCollisions();
+
+        // Setup visuals independently of IsDead so it waits for the warp
+        Invoke(nameof(ShowVisuals), 0.6f);
+    }
+
+    private void SetVisualsEnabled(bool enable)
+    {
+        for (int i = 0; i < playerRenderers.Length; i++)
+        {
+            if (playerRenderers[i] != null) playerRenderers[i].enabled = enable;
+        }
+        for (int i = 0; i < playerGuns.Length; i++)
+        {
+            if (playerGuns[i] != null)
+            {
+                playerGuns[i].enabled = enable;
+                SpriteRenderer[] gunRenderers = playerGuns[i].GetComponentsInChildren<SpriteRenderer>();
+                foreach (var r in gunRenderers) r.enabled = enable;
+            }
+        }
+        if (nameText != null) nameText.enabled = enable;
+    }
+
+    private void ShowVisuals()
+    {
+        isSpawningVisualLock = false; // Break the lock!
+        // Only show if they haven't died again between the invoke
+        if (!IsDead.Value && !isInLobby)
+        {
+            UpdateVisibilityState(); // Triggers full restore
+        }
+        if (rb != null)
+        {
+            rb.interpolation = RigidbodyInterpolation2D.Interpolate;
+        }
+    }
+
+    public void SetupIgnoreCollisions()
+    {
+        // Ignore collisions with all other currently spawned players
+        Player[] allPlayers = Object.FindObjectsByType<Player>(FindObjectsSortMode.None);
+        foreach (Player p in allPlayers)
+        {
+            if (p == this) continue;
+            if (p.playerColliders == null || this.playerColliders == null) continue;
+
+            foreach (var myCol in this.playerColliders)
+            {
+                foreach (var otherCol in p.playerColliders)
+                {
+                    if (myCol != null && otherCol != null && myCol.gameObject.activeInHierarchy && otherCol.gameObject.activeInHierarchy)
+                    {
+                        Physics2D.IgnoreCollision(myCol, otherCol, true);
+                    }
+                }
+            }
+        }
+
+        // Ignore collisions with all currently spawned enemies
+        Enemy[] allEnemies = Object.FindObjectsByType<Enemy>(FindObjectsSortMode.None);
+        foreach (Enemy e in allEnemies)
+        {
+            Collider2D eCol = e.GetComponent<Collider2D>();
+            if (eCol == null || this.playerColliders == null) continue;
+
+            foreach (var myCol in this.playerColliders)
+            {
+                if (myCol != null && myCol.gameObject.activeInHierarchy && e.gameObject.activeInHierarchy)
+                {
+                    Physics2D.IgnoreCollision(myCol, eCol, true);
+                }
+            }
         }
     }
 }

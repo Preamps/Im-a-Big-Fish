@@ -7,6 +7,7 @@ public enum SoundType
     GunFire,
     Reload,
     BulletHit,
+    BulletHitWall,
     EnemyDeath,
     PlayerDamage,
     PlayerDeath,
@@ -367,5 +368,23 @@ public class SoundManager : MonoBehaviour
     public void SetMuted(bool muted)
     {
         AudioListener.pause = muted;
+    }
+    public void PlayGunSoundFollowingTransform(AudioClip clip, Transform followTransform, float volume = 1f, float pitch = 1f)
+    {
+        if (clip == null || followTransform == null) return;
+
+        GameObject soundObject = new GameObject("FollowingAudioSource");
+        soundObject.transform.SetParent(followTransform);
+        soundObject.transform.localPosition = Vector3.zero;
+
+        AudioSource source = soundObject.AddComponent<AudioSource>();
+        source.clip = clip;
+        source.volume = Mathf.Clamp01(volume) * sfxVolume * masterVolume;
+        source.pitch = pitch;
+        source.spatialBlend = 1f;
+        source.maxDistance = 50f;
+        source.Play();
+
+        Destroy(soundObject, clip.length);
     }
 }

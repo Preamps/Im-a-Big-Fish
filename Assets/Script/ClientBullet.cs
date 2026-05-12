@@ -8,13 +8,15 @@ public class ClientBullet : MonoBehaviour
     private float despawnAtTime;
     private Vector2 direction;
     private float speed;
+    private float damage;
 
     private ulong shooterId;
 
-    public void Initialize(Vector2 dir, float moveSpeed, ulong shooterClientId)
+    public void Initialize(Vector2 dir, float moveSpeed, float bulletDamage, ulong shooterClientId)
     {
         direction = dir.normalized;
         speed = moveSpeed;
+        damage = bulletDamage;
         shooterId = shooterClientId;
         despawnAtTime = Time.time + maxLifetimeSeconds;
 
@@ -51,6 +53,31 @@ public class ClientBullet : MonoBehaviour
 
                     // Found an enemy
                     charHit.PlayLocalDamageFlash();
+
+                    // Client authoritative hit - ONLY the shooter sends the damage
+                    if (Unity.Netcode.NetworkManager.Singleton != null &&
+                        Unity.Netcode.NetworkManager.Singleton.LocalClientId == shooterId &&
+                        charHit.NetworkObject != null && charHit.NetworkObject.IsSpawned)
+                    {
+                        charHit.NotifyHitServerRpc(damage, shooterId);
+
+                        // Client prediction: use a local health tracker so multiple bullets fired quickly 
+                        // correctly predict death even before the server responds!
+                        charHit.LocalPredictedHealth -= damage;
+                        if (charHit.LocalPredictedHealth <= 0)
+                        {
+                            if (!charHit.IsServer)
+                            {
+                                charHit.gameObject.SetActive(false); // Hide immediately on pure clients only
+                            }
+
+                            if (SoundManager.Instance != null && charHit is Enemy)
+                            {
+                                SoundManager.Instance.PlaySound(SoundType.EnemyDeath, charHit.transform.position);
+                            }
+                        }
+                    }
+
                     SpawnHitEffect(hit.point, hit.normal, true);
                     Destroy(gameObject);
                     return;
@@ -59,6 +86,10 @@ public class ClientBullet : MonoBehaviour
                 if (hit.collider.isTrigger) continue; // Ignore triggers like aggro ranges
 
                 // Hit a wall
+                if (SoundManager.Instance != null)
+                {
+                    SoundManager.Instance.PlaySound(SoundType.BulletHitWall, hit.point);
+                }
                 SpawnHitEffect(hit.point, hit.normal, false);
                 Destroy(gameObject);
                 return;

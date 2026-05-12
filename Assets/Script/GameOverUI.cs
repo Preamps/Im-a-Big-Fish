@@ -15,6 +15,28 @@ public class GameOverUI : MonoBehaviour
     private bool hasGameStarted = false;
     private float gameStartTime = 0f;
 
+    private void SaveLocalPlayerName()
+    {
+        if (GameData.Instance == null)
+        {
+            return;
+        }
+
+        Player[] players = FindObjectsByType<Player>(FindObjectsInactive.Include, FindObjectsSortMode.None);
+        foreach (Player p in players)
+        {
+            if (p != null && p.IsOwner)
+            {
+                string networkName = p.playerName.Value.ToString();
+                if (!string.IsNullOrEmpty(networkName))
+                {
+                    GameData.Instance.PlayerName = networkName;
+                }
+                break;
+            }
+        }
+    }
+
     private void Start()
     {
         if (gameOverPanel != null)
@@ -112,6 +134,8 @@ public class GameOverUI : MonoBehaviour
 
     public void OnBackToMainMenuClicked()
     {
+        SaveLocalPlayerName();
+
         // Shut down the network connection first
         if (NetworkManager.Singleton != null)
         {

@@ -1,3 +1,4 @@
+using Unity.Netcode;
 using UnityEngine;
 
 public class ServerBullet : MonoBehaviour
@@ -83,8 +84,8 @@ public class ServerBullet : MonoBehaviour
         {
             if (character.CompareTag("Player")) return;
 
-            // Deal damage
-            character.TakeDamage(damage, shooterClientId);
+            // Client bullets handle damage now using NotifyHitServerRpc
+            // But we still destroy the server bullet so it doesn't pass through
             Destroy(gameObject);
             return;
         }
@@ -96,6 +97,17 @@ public class ServerBullet : MonoBehaviour
         }
 
         // Hit a solid wall or obstacle
+        // Client bullets already play hit sounds locally, so server doesn't need to do it anymore
+        // PlayWallHitSoundClientRpc(transform.position);
         Destroy(gameObject);
+    }
+
+    [ClientRpc]
+    private void PlayWallHitSoundClientRpc(Vector3 position)
+    {
+        if (SoundManager.Instance != null)
+        {
+            SoundManager.Instance.PlaySound(SoundType.BulletHitWall, position);
+        }
     }
 }

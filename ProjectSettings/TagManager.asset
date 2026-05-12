@@ -41,6 +41,12 @@ TagManager:
   - name: Default
     uniqueID: 0
     locked: 0
+  - name: Player
+    uniqueID: 2020145947
+    locked: 0
+  - name: ShadowObject
+    uniqueID: 983125319
+    locked: 0
   m_RenderingLayers:
   - Default
   - 

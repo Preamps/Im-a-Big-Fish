@@ -109,31 +109,124 @@ MonoBehaviour:
   ShowTopMostFoldoutHeaderGroup: 1
   firePoint: {fileID: 628080110548018293}
   pivot: {fileID: 5094123858473183714}
-  serverBulletPrefab: {fileID: 969277354531038930, guid: c9ac432285ba8c24eaf0cc7e3d8de9d8, type: 3}
+  serverBulletPrefab: {fileID: 969277354531038930, guid: e0d5fc856c3a1d446b99ebe4b8fa5b0c, type: 3}
   clientBulletPrefab: {fileID: 969277354531038930, guid: c5c98cf74e0635e42816c2188dea97c7, type: 3}
   muzzleFlashPrefab: {fileID: 4231662871266753733, guid: 3284df5f343671f4eb1fe859dd862a4b, type: 3}
+  muzzleLightPrefab: {fileID: 1339390890704616067, guid: 50b6466c3cc4a514d88f56050d58142b, type: 3}
   bulletShellPrefab: {fileID: 4068116059452685361, guid: 88edd84802c3c98498e074144c3b68b9, type: 3}
   shellEjectionPoint: {fileID: 738342985445266861}
-  gunshotClip: {fileID: 8300000, guid: a8bde51d409a6154ab794526fdc785b9, type: 3}
-  reloadClip: {fileID: 8300000, guid: 67a2811532cf1a44caa3cd5394877969, type: 3}
-  gunshotVolume: 0.6
-  reloadVolume: 0.5
-  gunshotIs3D: 1
-  reloadIs3D: 1
-  gunshotMaxDistance: 50
-  reloadMaxDistance: 5
   muzzleFlashDuration: 0.05
-  bulletSpeed: 25
+  muzzleLightDuration: 0.08
+  bulletSpeed: 30
   bulletDamage: 20
   fireRate: 6
   holdToFire: 0
   bulletsPerShot: 1
-  spreadAngle: 15
+  spreadAngle: 1
   handAim: {fileID: 3641096547895977303}
   recoilAmount: 3
   maxActiveBulletsPerShooter: 32
+  gunFireClip: {fileID: 8300000, guid: a8bde51d409a6154ab794526fdc785b9, type: 3}
+  reloadClip: {fileID: 8300000, guid: 67a2811532cf1a44caa3cd5394877969, type: 3}
+  gunFireVolume: 0.8
+  reloadVolume: 0.5
   maxAmmo: 12
   reloadTime: 1.5
+--- !u!1 &632560189915624592
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 961522244285936840}
+  - component: {fileID: 3803408958273930166}
+  m_Layer: 5
+  m_Name: ReviveIcon
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!224 &961522244285936840
+RectTransform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 632560189915624592}
+  m_LocalRotation: {x: -0, y: -0, z: -0, w: 1}
+  m_LocalPosition: {x: 0, y: 0, z: 0}
+  m_LocalScale: {x: 0.3625629, y: 0.3625629, z: 0.3625629}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 1384540140291545694}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+  m_AnchorMin: {x: 0.5, y: 0}
+  m_AnchorMax: {x: 0.5, y: 0}
+  m_AnchoredPosition: {x: -527.80994, y: -0.36999512}
+  m_SizeDelta: {x: 100, y: 100}
+  m_Pivot: {x: 0.5, y: 0.5}
+--- !u!212 &3803408958273930166
+SpriteRenderer:
+  serializedVersion: 2
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 632560189915624592}
+  m_Enabled: 1
+  m_CastShadows: 0
+  m_ReceiveShadows: 0
+  m_DynamicOccludee: 1
+  m_StaticShadowCaster: 0
+  m_MotionVectors: 1
+  m_LightProbeUsage: 1
+  m_ReflectionProbeUsage: 1
+  m_RayTracingMode: 0
+  m_RayTraceProcedural: 0
+  m_RayTracingAccelStructBuildFlagsOverride: 0
+  m_RayTracingAccelStructBuildFlags: 1
+  m_SmallMeshCulling: 1
+  m_ForceMeshLod: -1
+  m_MeshLodSelectionBias: 0
+  m_RenderingLayerMask: 1
+  m_RendererPriority: 0
+  m_Materials:
+  - {fileID: 2100000, guid: a97c105638bdf8b4a8650670310a4cd3, type: 2}
+  m_StaticBatchInfo:
+    firstSubMesh: 0
+    subMeshCount: 0
+  m_StaticBatchRoot: {fileID: 0}
+  m_ProbeAnchor: {fileID: 0}
+  m_LightProbeVolumeOverride: {fileID: 0}
+  m_ScaleInLightmap: 1
+  m_ReceiveGI: 1
+  m_PreserveUVs: 0
+  m_IgnoreNormalsForChartDetection: 0
+  m_ImportantGI: 0
+  m_StitchLightmapSeams: 1
+  m_SelectedEditorRenderState: 0
+  m_MinimumChartSize: 4
+  m_AutoUVMaxDistance: 0.5
+  m_AutoUVMaxAngle: 89
+  m_LightmapParameters: {fileID: 0}
+  m_GlobalIlluminationMeshLod: 0
+  m_SortingLayerID: 0
+  m_SortingLayer: 0
+  m_SortingOrder: 99
+  m_MaskInteraction: 0
+  m_Sprite: {fileID: 21300000, guid: 0294da9af7fbf9f4a9b0396b54d56fa7, type: 3}
+  m_Color: {r: 1, g: 1, b: 1, a: 1}
+  m_FlipX: 0
+  m_FlipY: 0
+  m_DrawMode: 0
+  m_Size: {x: 3.5, y: 3.5}
+  m_AdaptiveModeThreshold: 0.5
+  m_SpriteTileMode: 0
+  m_WasSpriteAssigned: 1
+  m_SpriteSortPoint: 1
 --- !u!1 &2204090034340559749
 GameObject:
   m_ObjectHideFlags: 0
@@ -439,6 +532,11 @@ MonoBehaviour:
   IsDown:
     m_InternalValue: 0
   nameText: {fileID: 1400328106939101088}
+  reviveIconRenderer: {fileID: 3803408958273930166}
+  reviveIconHeightOffset: -0.6
+  reviveIconStartColor: {r: 1, g: 0.9, b: 0.2, a: 1}
+  reviveIconEndColor: {r: 1, g: 0, b: 0, a: 1}
+  downDuration: 15
 --- !u!95 &7145141332279206157
 Animator:
   serializedVersion: 7
@@ -766,6 +864,7 @@ RectTransform:
   m_ConstrainProportionsScale: 0
   m_Children:
   - {fileID: 3059262486668677243}
+  - {fileID: 961522244285936840}
   m_Father: {fileID: 1003974061664010030}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
   m_AnchorMin: {x: 0, y: 0}

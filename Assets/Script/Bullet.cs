@@ -170,13 +170,24 @@ public class Bullet : NetworkBehaviour
             // Ignore the shooter's own collider so bullets can continue flying.
             if (character.OwnerClientId == shooterClientId) return;
 
+            PlayBulletHitSoundClientRpc(transform.position);
             character.TakeDamage(damage);
 
             DespawnBullet();
             return;
         }
 
+        PlayBulletHitSoundClientRpc(transform.position);
         DespawnBullet();
+    }
+
+    [ClientRpc]
+    private void PlayBulletHitSoundClientRpc(Vector3 hitPosition)
+    {
+        if (SoundManager.Instance != null)
+        {
+            SoundManager.Instance.PlaySound(SoundType.BulletHit, hitPosition);
+        }
     }
 
     private void DespawnBullet()

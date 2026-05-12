@@ -6,6 +6,8 @@ using System.Collections.Generic;
 [RequireComponent(typeof(Collider2D))]
 public class Enemy : Character
 {
+    protected override SoundType DeathSoundType => SoundType.EnemyDeath;
+
     private static readonly RaycastHit2D[] obstacleHitBuffer = new RaycastHit2D[8];
     private static readonly RaycastHit2D[] groundHitBuffer = new RaycastHit2D[8];
     private static readonly Collider2D[] overlapHitBuffer = new Collider2D[8];
@@ -39,6 +41,8 @@ public class Enemy : Character
     private Collider2D enemyCollider;
     private PhysicsMaterial2D noFrictionMaterial;
     private Vector2 clientSmoothVelocity;
+    private Vector2 clientInterpolatedPosition;
+    private float lastNetworkUpdateTime;
     private int walkBoolParamHash;
     private float nextTouchDamageTime;
     private float nextNetworkSyncTime;
@@ -111,6 +115,19 @@ public class Enemy : Character
     {
         base.OnNetworkSpawn();
 
+        if (rb != null)
+        {
+            if (IsServer)
+            {
+                rb.interpolation = RigidbodyInterpolation2D.Interpolate;
+            }
+            else
+            {
+                rb.bodyType = RigidbodyType2D.Kinematic; // Disable physics simulation on client
+                rb.interpolation = RigidbodyInterpolation2D.None;
+            }
+        }
+
         float senseInterval = Mathf.Max(0.02f, obstacleSenseInterval);
         nextObstacleSenseTime = Time.time + (Mathf.Abs(GetInstanceID()) % 100) / 100f * senseInterval;
 
@@ -148,20 +165,42 @@ public class Enemy : Character
             lastSentIsWalking = netIsWalking.Value;
             hasSentState = true;
         }
+        else
+        {
+            // Client: Initialize interpolation from current network position
+            clientInterpolatedPosition = netPosition.Value;
+            lastNetworkUpdateTime = Time.time;
+        }
     }
 
     void Update()
     {
         if (IsServer) return;
 
-        Vector2 syncedPos = netPosition.Value;
-        rb.position = Vector2.SmoothDamp(
-            rb.position,
-            syncedPos,
-            ref clientSmoothVelocity,
-            Mathf.Max(0.01f, networkSmoothTime)
-        );
+        float distance = Vector2.Distance(clientInterpolatedPosition, netPosition.Value);
 
+        if (distance > 2f)
+        {
+            // Snap immediately if totally desynced (e.g. knocked back fast or spawned)
+            clientInterpolatedPosition = netPosition.Value;
+        }
+        else
+        {
+            // Perfect hybrid: Move at least the base speed if walking to prevent "floaty Lerp crawl",
+            // plus rubber-band catchup speed based on how far behind the network tick we are.
+            float baseSpeed = netIsWalking.Value ? Speed : 0.1f;
+            float catchupSpeed = baseSpeed + (distance * 12f);
+
+            clientInterpolatedPosition = Vector2.MoveTowards(
+                clientInterpolatedPosition,
+                netPosition.Value,
+                catchupSpeed * Time.deltaTime
+            );
+        }
+
+        transform.position = clientInterpolatedPosition;
+
+        // Client: Update visuals based on network state
         if (spriteRenderer != null)
         {
             spriteRenderer.flipX = netFlipX.Value;
@@ -177,28 +216,22 @@ public class Enemy : Character
     {
         if (!IsServer) return;
 
+        // Skip physics/AI if dead (prevents server from moving "dead but not despawned" zombies)
+        if (Health.Value <= 0 || IsDead.Value) return;
+
+        // Server: AI and physics logic only
         Move();
         TryDamagePlayerOverlap();
         bool isWalking = Mathf.Abs(rb.linearVelocity.x) > walkAnimThreshold;
 
-        if (animator != null)
-        {
-            animator.SetBool(walkBoolParamHash, isWalking);
-        }
-
-        float interval = 1f / Mathf.Max(1f, networkSendRate);
-        if (Time.time < nextNetworkSyncTime)
-        {
-            return;
-        }
-
-        nextNetworkSyncTime = Time.time + interval;
+        // Server: Network synchronization
         Vector2 currentPosition = rb.position;
         bool currentFlipX = spriteRenderer != null && spriteRenderer.flipX;
-        bool isHeartbeatDue = Time.time >= nextNetworkHeartbeatTime;
 
-        bool movedEnough = !hasSentState || Vector2.Distance(currentPosition, lastSentPosition) >= Mathf.Max(0.001f, networkPositionThreshold);
+        // Remove threshold check to ensure continuous tracking, but only sync if position actually changed
+        bool movedEnough = !hasSentState || Vector2.Distance(currentPosition, lastSentPosition) > 0.001f;
         bool stateChanged = !hasSentState || currentFlipX != lastSentFlipX || isWalking != lastSentIsWalking;
+        bool isHeartbeatDue = Time.time >= nextNetworkHeartbeatTime;
 
         if (!movedEnough && !stateChanged && !isHeartbeatDue)
         {

@@ -4,8 +4,32 @@ using UnityEngine.SceneManagement;
 
 public class LobbyMenuUI : MonoBehaviour
 {
+    private void SaveLocalPlayerName()
+    {
+        if (GameData.Instance == null)
+        {
+            return;
+        }
+
+        Player[] players = FindObjectsByType<Player>(FindObjectsInactive.Include, FindObjectsSortMode.None);
+        foreach (Player p in players)
+        {
+            if (p != null && p.IsOwner)
+            {
+                string networkName = p.playerName.Value.ToString();
+                if (!string.IsNullOrEmpty(networkName))
+                {
+                    GameData.Instance.PlayerName = networkName;
+                }
+                break;
+            }
+        }
+    }
+
     public void OnBackToMainMenuClicked()
     {
+        SaveLocalPlayerName();
+
         // Shut down the network connection first
         if (NetworkManager.Singleton != null)
         {
@@ -14,18 +38,5 @@ public class LobbyMenuUI : MonoBehaviour
 
         // Load the Menu scene
         SceneManager.LoadScene("Menu");
-    }
-
-    public void OnQuitGameClicked()
-    {
-        // Recommended: Shut down network before closing the app 
-        // to prevent "ghost" connections on the server/host side
-        if (NetworkManager.Singleton != null)
-        {
-            NetworkManager.Singleton.Shutdown();
-        }
-
-        Debug.Log("Quit Game button clicked!");
-        Application.Quit();
     }
 }

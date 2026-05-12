@@ -15,6 +15,7 @@ public class WaveManager : NetworkBehaviour
     [SerializeField] private EnemySpawnConfig[] enemyConfigs;
     [SerializeField] private Transform[] spawnPoints;
     [SerializeField] private Transform[] playerRespawnPoints;
+    [SerializeField] private GameObject playerPrefab;
 
     [Header("Wave Setup")]
     [SerializeField] private int baseEnemiesPerWave = 3;
@@ -70,6 +71,9 @@ public class WaveManager : NetworkBehaviour
     {
         if (!IsServer) return;
 
+        NetworkManager.Singleton.SceneManager.OnLoadEventCompleted -= OnLoadEventCompleted;
+        NetworkManager.Singleton.SceneManager.OnLoadEventCompleted += OnLoadEventCompleted;
+
         if (enemyConfigs == null || enemyConfigs.Length == 0)
         {
             Debug.LogWarning("WaveManager: add at least 1 enemy prefab.");
@@ -92,10 +96,51 @@ public class WaveManager : NetworkBehaviour
 
     public override void OnNetworkDespawn()
     {
+        base.OnNetworkDespawn();
+        if (IsServer && NetworkManager.Singleton != null && NetworkManager.Singleton.SceneManager != null)
+        {
+            NetworkManager.Singleton.SceneManager.OnLoadEventCompleted -= OnLoadEventCompleted;
+        }
+
         if (waveRoutine != null)
         {
             StopCoroutine(waveRoutine);
             waveRoutine = null;
+        }
+    }
+
+    private void OnLoadEventCompleted(string sceneName, UnityEngine.SceneManagement.LoadSceneMode loadSceneMode, System.Collections.Generic.List<ulong> clientsCompleted, System.Collections.Generic.List<ulong> clientsTimedOut)
+    {
+        if (sceneName == "GameScene")
+        {
+            foreach (ulong clientId in clientsCompleted)
+            {
+                // 1. Server selects a spawn point
+                Vector3 spawnPos = GetRandomPlayerRespawnPosition();
+
+                if (NetworkManager.Singleton.ConnectedClients.TryGetValue(clientId, out var client))
+                {
+                    // If NetworkManager was allowed to spawn one automatically, we ignore it or use it, 
+                    // but since we are writing custom logic:
+                    if (client.PlayerObject == null && playerPrefab != null)
+                    {
+                        // 2. Instantiate the object at the spawn point
+                        GameObject playerInstance = Instantiate(playerPrefab, spawnPos, Quaternion.identity);
+
+                        // 3. Spawn the network object (Step 4 happens natively on Clients on spawn)
+                        playerInstance.GetComponent<NetworkObject>().SpawnAsPlayerObject(clientId, true);
+
+                        Player p = playerInstance.GetComponent<Player>();
+                        if (p != null) p.ServerRespawn(spawnPos);
+                    }
+                    else if (client.PlayerObject != null)
+                    {
+                        // Fallback just in case you haven't unchecked the default box yet
+                        Player p = client.PlayerObject.GetComponent<Player>();
+                        if (p != null) p.ServerRespawn(spawnPos);
+                    }
+                }
+            }
         }
     }
 
@@ -127,6 +172,7 @@ public class WaveManager : NetworkBehaviour
         while (true)
         {
             CurrentWave.Value = wave;
+            AnnounceWaveStartClientRpc(wave);
             RespawnDeadPlayers();
 
             int enemiesToSpawn = baseEnemiesPerWave + ((wave - 1) * extraEnemiesPerWave);
@@ -139,6 +185,8 @@ public class WaveManager : NetworkBehaviour
             {
                 WaveClearedSignal.Value = WaveClearedSignal.Value + 1;
             }
+
+            AnnounceWaveCompleteClientRpc(wave);
 
             if (timeBetweenWaves > 0f)
             {
@@ -281,48 +329,57 @@ public class WaveManager : NetworkBehaviour
 
     private void RespawnDeadPlayers()
     {
-        Player[] players = FindObjectsByType<Player>(FindObjectsSortMode.None);
+        Player[] players = FindObjectsByType<Player>(FindObjectsInactive.Include, FindObjectsSortMode.None);
         if (players == null || players.Length == 0)
         {
             return;
         }
 
-        int respawnIndex = 0;
         for (int i = 0; i < players.Length; i++)
         {
             Player player = players[i];
-            if (player == null || !player.IsSpawned || !player.IsDead.Value)
+            // Players might just be down instead of dead. Respawn them either way.
+            if (player == null || !player.IsSpawned || (!player.IsDead.Value && !player.IsDown.Value))
             {
                 continue;
             }
 
-            Vector3 respawnPos = GetPlayerRespawnPosition(respawnIndex);
+            Vector3 respawnPos = GetRandomPlayerRespawnPosition();
             player.ServerRespawn(respawnPos);
-            respawnIndex++;
         }
     }
 
-    private Vector3 GetPlayerRespawnPosition(int respawnIndex)
+    public Vector3 GetRandomPlayerRespawnPosition()
     {
         if (playerRespawnPoints != null && playerRespawnPoints.Length > 0)
         {
-            int index = Mathf.Abs(respawnIndex) % playerRespawnPoints.Length;
+            int index = UnityEngine.Random.Range(0, playerRespawnPoints.Length);
             Transform point = playerRespawnPoints[index];
             if (point != null)
             {
                 return point.position;
             }
         }
-
-        if (spawnPoints != null && spawnPoints.Length > 0)
-        {
-            Transform point = spawnPoints[0];
-            if (point != null)
-            {
-                return point.position;
-            }
-        }
-
         return Vector3.zero;
+    }
+
+    [ClientRpc]
+    private void AnnounceWaveStartClientRpc(int waveNumber)
+    {
+        if (SoundManager.Instance != null)
+        {
+            SoundManager.Instance.PlaySound(SoundType.WaveStart);
+            SoundManager.Instance.PlayMusic(SoundType.WaveMusic);
+        }
+    }
+
+    [ClientRpc]
+    private void AnnounceWaveCompleteClientRpc(int waveNumber)
+    {
+        if (SoundManager.Instance != null)
+        {
+            SoundManager.Instance.PlaySound(SoundType.WaveComplete);
+            SoundManager.Instance.PlayMusic(SoundType.BackgroundMusic);
+        }
     }
 }
