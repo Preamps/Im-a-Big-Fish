@@ -11,7 +11,7 @@ GameObject:
   - component: {fileID: 1925002747864771268}
   - component: {fileID: 2844740203820886618}
   m_Layer: 0
-  m_Name: MuzzleFlash
+  m_Name: MuzzleFlashSpecial2
   m_TagString: Untagged
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
@@ -79,10 +79,10 @@ SpriteRenderer:
   m_GlobalIlluminationMeshLod: 0
   m_SortingLayerID: 0
   m_SortingLayer: 0
-  m_SortingOrder: 10
+  m_SortingOrder: 99
   m_MaskInteraction: 0
-  m_Sprite: {fileID: 21300000, guid: 00ab718421b7b5f4ea0a34fd6145f6c7, type: 3}
-  m_Color: {r: 1, g: 1, b: 1, a: 0.8039216}
+  m_Sprite: {fileID: 21300000, guid: 060a3e1cdbc0fb24f81b5554da0da960, type: 3}
+  m_Color: {r: 1, g: 0.3647059, b: 0.90588236, a: 0.8039216}
   m_FlipX: 1
   m_FlipY: 0
   m_DrawMode: 0

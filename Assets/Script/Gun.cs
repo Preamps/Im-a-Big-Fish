@@ -8,12 +8,13 @@ public class Gun : NetworkBehaviour
     public Transform pivot;
     public GameObject serverBulletPrefab;
     public GameObject clientBulletPrefab;
-    public GameObject muzzleFlashPrefab;
-    public GameObject muzzleLightPrefab;
+    public GameObject[] muzzleFlashPrefabs;
+    public GameObject[] muzzleLightPrefabs;
     public GameObject bulletShellPrefab;
     public Transform shellEjectionPoint;
     public float muzzleFlashDuration = 0.1f;
     public float muzzleLightDuration = 0.08f;
+    [Range(0f, 1f)] public float muzzleFlashChance = 0.8f;
     public float bulletSpeed = 20f;
     public float bulletDamage = 20f;
     public float fireRate = 6f;
@@ -23,6 +24,12 @@ public class Gun : NetworkBehaviour
     public HandAim handAim;
     public float recoilAmount = 1f;
     [SerializeField] private int maxActiveBulletsPerShooter = 32;
+    public float screenShakeIntensity = 0.15f;
+    public float screenShakeDuration = 0.1f;
+
+    public static System.Action OnLocalShot;
+    public static System.Action<float> OnLocalReloadStart;
+    public static System.Action OnLocalReloadEnd;
 
     // Gun-specific sounds
     [Header("Gun Audio")]
@@ -30,6 +37,11 @@ public class Gun : NetworkBehaviour
     public AudioClip reloadClip;
     [Range(0f, 1f)] public float gunFireVolume = 0.8f;
     [Range(0f, 1f)] public float reloadVolume = 0.6f;
+    [Tooltip("Optional: Secondary/tail sound for impact punch (e.g., click, shell casing). Leave empty for single-sound shots.")]
+    public AudioClip gunFireTailClip;
+    [Range(0f, 1f)] public float gunFireTailVolume = 0.3f;
+    [Tooltip("Delay in seconds before playing tail sound for layered impact effect")]
+    [Range(0f, 0.05f)] public float gunFireTailDelay = 0.01f;
 
     public int maxAmmo = 30;
     public float reloadTime = 1.5f;
@@ -120,6 +132,7 @@ public class Gun : NetworkBehaviour
     System.Collections.IEnumerator ReloadRoutine()
     {
         isReloading = true;
+        OnLocalReloadStart?.Invoke(reloadTime);
 
         // Play reload sound
         if (reloadClip != null)
@@ -131,11 +144,23 @@ public class Gun : NetworkBehaviour
 
         currentAmmo = maxAmmo;
         isReloading = false;
+        OnLocalReloadEnd?.Invoke();
+    }
+
+    System.Collections.IEnumerator PlayGunSoundTail()
+    {
+        yield return new WaitForSeconds(gunFireTailDelay);
+        if (gunFireTailClip != null && SoundManager.Instance != null)
+        {
+            Vector3 listenerPos = Camera.main != null ? Camera.main.transform.position : Vector3.zero;
+            SoundManager.Instance.PlayGunSoundMultiplayer(gunFireTailClip, firePoint.position, gunFireTailVolume, isLocalPlayer: true, listenerPos);
+        }
     }
 
     void Shoot()
     {
         currentAmmo--;
+        OnLocalShot?.Invoke();
 
         Vector3 mouse = Camera.main.ScreenToWorldPoint(Input.mousePosition);
         mouse.z = 0;
@@ -157,15 +182,17 @@ public class Gun : NetworkBehaviour
 
         float safeAngleVisual = Mathf.Atan2(finalDirVisual.y, finalDirVisual.x) * Mathf.Rad2Deg;
 
-        if (muzzleFlashPrefab != null)
+        if (muzzleFlashPrefabs != null && muzzleFlashPrefabs.Length > 0)
         {
-            GameObject flash = Instantiate(muzzleFlashPrefab, firePoint.position, Quaternion.Euler(0, 0, safeAngleVisual));
+            GameObject flashPrefab = muzzleFlashPrefabs[Random.Range(0, muzzleFlashPrefabs.Length)];
+            GameObject flash = Instantiate(flashPrefab, firePoint.position, Quaternion.Euler(0, 0, safeAngleVisual));
             Destroy(flash, muzzleFlashDuration);
         }
 
-        if (muzzleLightPrefab != null)
+        if (muzzleLightPrefabs != null && muzzleLightPrefabs.Length > 0)
         {
-            GameObject lightObj = Instantiate(muzzleLightPrefab, firePoint.position, Quaternion.Euler(0, 0, safeAngleVisual));
+            GameObject lightPrefab = muzzleLightPrefabs[Random.Range(0, muzzleLightPrefabs.Length)];
+            GameObject lightObj = Instantiate(lightPrefab, firePoint.position, Quaternion.Euler(0, 0, safeAngleVisual));
             Destroy(lightObj, muzzleLightDuration);
         }
 
@@ -175,10 +202,26 @@ public class Gun : NetworkBehaviour
             Instantiate(bulletShellPrefab, ejectPoint.position, Quaternion.Euler(0, 0, safeAngleVisual));
         }
 
-        // Play gun fire sound locally
+        // Play gun fire sound locally with multiplayer optimization
         if (gunFireClip != null && SoundManager.Instance != null)
         {
-            SoundManager.Instance.PlayGunSound(gunFireClip, firePoint.position, gunFireVolume);
+            Vector3 listenerPos = Camera.main != null ? Camera.main.transform.position : Vector3.zero;
+            SoundManager.Instance.PlayGunSoundMultiplayer(gunFireClip, firePoint.position, gunFireVolume, isLocalPlayer: true, listenerPos);
+
+            // Optional: Play tail sound for layered impact effect
+            if (gunFireTailClip != null && gunFireTailDelay >= 0f)
+            {
+                StartCoroutine(PlayGunSoundTail());
+            }
+        }
+
+        // Screen shake
+        CameraFollow camFollow = Camera.main.GetComponent<CameraFollow>();
+        if (camFollow != null)
+        {
+            camFollow.shakeIntensity = screenShakeIntensity;
+            camFollow.shakeDuration = screenShakeDuration;
+            camFollow.Shake();
         }
 
         int seed = Random.Range(int.MinValue, int.MaxValue);
@@ -301,15 +344,17 @@ public class Gun : NetworkBehaviour
         Vector3 spawnPos = firePoint != null ? firePoint.position : (Vector3)pos;
         float safeAngleVisual = Mathf.Atan2(finalDir.y, finalDir.x) * Mathf.Rad2Deg;
 
-        if (muzzleFlashPrefab != null)
+        if (muzzleFlashPrefabs != null && muzzleFlashPrefabs.Length > 0)
         {
-            GameObject flash = Instantiate(muzzleFlashPrefab, spawnPos, Quaternion.Euler(0, 0, safeAngleVisual));
+            GameObject flashPrefab = muzzleFlashPrefabs[Random.Range(0, muzzleFlashPrefabs.Length)];
+            GameObject flash = Instantiate(flashPrefab, spawnPos, Quaternion.Euler(0, 0, safeAngleVisual));
             Destroy(flash, muzzleFlashDuration);
         }
 
-        if (muzzleLightPrefab != null)
+        if (muzzleLightPrefabs != null && muzzleLightPrefabs.Length > 0)
         {
-            GameObject lightObj = Instantiate(muzzleLightPrefab, spawnPos, Quaternion.Euler(0, 0, safeAngleVisual));
+            GameObject lightPrefab = muzzleLightPrefabs[Random.Range(0, muzzleLightPrefabs.Length)];
+            GameObject lightObj = Instantiate(lightPrefab, spawnPos, Quaternion.Euler(0, 0, safeAngleVisual));
             Destroy(lightObj, muzzleLightDuration);
         }
 
@@ -371,7 +416,8 @@ public class Gun : NetworkBehaviour
 
         if (gunFireClip != null && SoundManager.Instance != null)
         {
-            SoundManager.Instance.PlayGunSound(gunFireClip, gunPosition, gunFireVolume);
+            Vector3 listenerPos = Camera.main != null ? Camera.main.transform.position : Vector3.zero;
+            SoundManager.Instance.PlayGunSoundMultiplayer(gunFireClip, gunPosition, gunFireVolume, isLocalPlayer: false, listenerPos);
         }
     }
 

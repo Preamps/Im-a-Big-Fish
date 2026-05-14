@@ -50,6 +50,7 @@ public class ClientBullet : MonoBehaviour
                 if (charHit != null)
                 {
                     if (charHit.CompareTag("Player")) continue;
+                    if (charHit.IsDead.Value) continue;
 
                     // Found an enemy
                     charHit.PlayLocalDamageFlash();
@@ -66,11 +67,6 @@ public class ClientBullet : MonoBehaviour
                         charHit.LocalPredictedHealth -= damage;
                         if (charHit.LocalPredictedHealth <= 0)
                         {
-                            if (!charHit.IsServer)
-                            {
-                                charHit.gameObject.SetActive(false); // Hide immediately on pure clients only
-                            }
-
                             if (SoundManager.Instance != null && charHit is Enemy)
                             {
                                 SoundManager.Instance.PlaySound(SoundType.EnemyDeath, charHit.transform.position);

@@ -25,7 +25,7 @@ Transform:
   m_GameObject: {fileID: 3415203468013411881}
   serializedVersion: 2
   m_LocalRotation: {x: -0, y: -0, z: -0, w: 1}
-  m_LocalPosition: {x: -2.921, y: 0.157, z: 0}
+  m_LocalPosition: {x: -2.921, y: 0.183, z: 0}
   m_LocalScale: {x: 0.4713554, y: 0.4713554, z: 0.4713554}
   m_ConstrainProportionsScale: 0
   m_Children: []
@@ -199,14 +199,19 @@ MonoBehaviour:
   pivot: {fileID: 4676118290747067439}
   serverBulletPrefab: {fileID: 969277354531038930, guid: e0d5fc856c3a1d446b99ebe4b8fa5b0c, type: 3}
   clientBulletPrefab: {fileID: 969277354531038930, guid: c5c98cf74e0635e42816c2188dea97c7, type: 3}
-  muzzleFlashPrefab: {fileID: 4231662871266753733, guid: 81be2d442eadea24da35da675736e8c1, type: 3}
-  muzzleLightPrefab: {fileID: 8741769964866471468, guid: 490093b6e3f96de41b3ed2c52de6b7c5, type: 3}
+  muzzleFlashPrefabs:
+  - {fileID: 4231662871266753733, guid: 81be2d442eadea24da35da675736e8c1, type: 3}
+  - {fileID: 4231662871266753733, guid: 3284df5f343671f4eb1fe859dd862a4b, type: 3}
+  - {fileID: 4231662871266753733, guid: 6d3d8002bf15cb8458b5723dd41dc7ce, type: 3}
+  muzzleLightPrefabs:
+  - {fileID: 8741769964866471468, guid: 490093b6e3f96de41b3ed2c52de6b7c5, type: 3}
   bulletShellPrefab: {fileID: 4068116059452685361, guid: 88edd84802c3c98498e074144c3b68b9, type: 3}
   shellEjectionPoint: {fileID: 4231119442683542920}
   muzzleFlashDuration: 0.05
   muzzleLightDuration: 0.08
+  muzzleFlashChance: 0.8
   bulletSpeed: 30
-  bulletDamage: 25
+  bulletDamage: 26
   fireRate: 8.2
   holdToFire: 1
   bulletsPerShot: 1
@@ -214,6 +219,8 @@ MonoBehaviour:
   handAim: {fileID: 0}
   recoilAmount: 0.7
   maxActiveBulletsPerShooter: 32
+  screenShakeIntensity: 0.75
+  screenShakeDuration: 0.1
   gunFireClip: {fileID: 8300000, guid: 5704ea33e8d29364caf8092f7543714b, type: 3}
   reloadClip: {fileID: 8300000, guid: 1cfe76f6a6fb17844b8a93c07f1a190d, type: 3}
   gunFireVolume: 0.8

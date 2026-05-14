@@ -83,6 +83,16 @@ public class ServerBullet : MonoBehaviour
         if (character != null)
         {
             if (character.CompareTag("Player")) return;
+            if (character.IsDead.Value)
+            {
+                Collider2D myCol = GetComponent<Collider2D>();
+                if (myCol != null && col != null)
+                {
+                    Physics2D.IgnoreCollision(myCol, col);
+                }
+
+                return;
+            }
 
             // Client bullets handle damage now using NotifyHitServerRpc
             // But we still destroy the server bullet so it doesn't pass through

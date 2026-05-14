@@ -34,6 +34,8 @@ public class Player : Character
     private bool hasSentPosition;
     private float lastDamageTime = -100f;
     private Vector2 remoteSmoothVelocity;
+    private float nextFootstepTime = 0f;
+    private float footstepCooldown = 0.4f; // Time between footsteps
     private Collider2D[] playerColliders;
     private SpriteRenderer[] playerRenderers;
     private Gun[] playerGuns;
@@ -100,6 +102,12 @@ public class Player : Character
             NetworkVariableReadPermission.Everyone,
             NetworkVariableWritePermission.Server
         );
+    private NetworkVariable<bool> IsBeingRevived =
+        new NetworkVariable<bool>(
+            false,
+            NetworkVariableReadPermission.Everyone,
+            NetworkVariableWritePermission.Server
+        );
     private NetworkVariable<float> DownTimerRemaining =
         new NetworkVariable<float>(
             0f,
@@ -115,6 +123,8 @@ public class Player : Character
     [SerializeField] private Color reviveIconStartColor = new Color(1f, 0.9f, 0.2f, 1f);
     [SerializeField] private Color reviveIconEndColor = new Color(1f, 0f, 0f, 1f);
     [SerializeField] private float downDuration = 15f;
+    [SerializeField] private float reviveHoldDuration = 3f;
+    [SerializeField] private float reviveInteractRange = 2.5f;
 
     private CameraFollow camFollow;
 
@@ -123,6 +133,10 @@ public class Player : Character
     private float ignoreNetworkPositionUntil = 0f;
     private float downTimer = 0f;
     private bool isSpawningVisualLock = false;
+    private float reviveHoldTimer = 0f;
+    private Player reviveHoldTarget;
+
+    public float ReviveHoldProgress => Mathf.Clamp01(reviveHoldTimer / Mathf.Max(0.01f, reviveHoldDuration));
 
     private void Awake()
     {
@@ -211,7 +225,7 @@ public class Player : Character
         if (isInLobby) return;
         UpdateReviveIcon();
 
-        if (IsServer && !IsDead.Value && IsDown.Value)
+        if (IsServer && !IsDead.Value && IsDown.Value && !IsBeingRevived.Value)
         {
             downTimer -= Time.deltaTime;
             DownTimerRemaining.Value = Mathf.Max(0f, downTimer);
@@ -278,7 +292,7 @@ public class Player : Character
 
     private void FindNearbyDownedPlayers()
     {
-        float closestDist = 2.5f; // revive interaction range
+        float closestDist = reviveInteractRange;
         Player nearestP = null;
 
         Player[] allPlayers = Object.FindObjectsByType<Player>(FindObjectsSortMode.None);
@@ -432,12 +446,14 @@ public class Player : Character
     public override void Move()
     {
         float newVelocityY = rb.linearVelocity.y;
+        bool isGrounded = CheckGrounded();
 
         if (wantsToJump)
         {
-            if (CheckGrounded())
+            if (isGrounded)
             {
                 newVelocityY = jumpForce;
+                PlayJumpSoundServerRpc(transform.position);
             }
             wantsToJump = false; // Reset the jump request after consuming it
         }
@@ -446,6 +462,13 @@ public class Player : Character
             moveInput * Speed,
             newVelocityY
         );
+
+        // Play footsteps when moving on ground
+        if (isGrounded && Mathf.Abs(moveInput) > 0.01f && Time.time >= nextFootstepTime)
+        {
+            PlayFootstepSoundServerRpc(transform.position);
+            nextFootstepTime = Time.time + footstepCooldown;
+        }
 
         PublishPosition();
     }
@@ -528,10 +551,7 @@ public class Player : Character
             }
         }
 
-        if (Input.GetKeyDown(KeyCode.F) && nearbyDownedPlayer != null && nearbyDownedPlayer.IsDown.Value)
-        {
-            ReviveServerRpc(nearbyDownedPlayer.OwnerClientId);
-        }
+        HandleReviveInput();
 
         float safeRate = Mathf.Max(1f, networkSendRate);
         if (Time.time < nextInputSendTime)
@@ -550,6 +570,79 @@ public class Player : Character
         lastSentMoveInput = moveInput;
         hasSentMoveInput = true;
         nextInputSendTime = Time.time + (1f / safeRate);
+    }
+
+    private void HandleReviveInput()
+    {
+        Player target = nearbyDownedPlayer;
+        bool canRevive = target != null && target.IsDown.Value && !target.IsDead.Value;
+
+        if (!canRevive || !Input.GetKey(KeyCode.F))
+        {
+            if (reviveHoldTarget != null)
+            {
+                SetReviveAssistStateServerRpc(reviveHoldTarget.OwnerClientId, false);
+            }
+            ResetReviveHold();
+            return;
+        }
+
+        if (reviveHoldTarget != target)
+        {
+            if (reviveHoldTarget != null)
+            {
+                SetReviveAssistStateServerRpc(reviveHoldTarget.OwnerClientId, false);
+            }
+            reviveHoldTarget = target;
+            reviveHoldTimer = 0f;
+            SetReviveAssistStateServerRpc(target.OwnerClientId, true);
+        }
+
+        reviveHoldTimer += Time.deltaTime;
+        if (reviveHoldTimer >= Mathf.Max(0.01f, reviveHoldDuration))
+        {
+            ReviveServerRpc(target.OwnerClientId);
+            ResetReviveHold();
+        }
+    }
+
+    private void ResetReviveHold()
+    {
+        reviveHoldTimer = 0f;
+        reviveHoldTarget = null;
+    }
+
+    [ServerRpc]
+    private void SetReviveAssistStateServerRpc(ulong downedPlayerId, bool isBeingRevived, ServerRpcParams rpcParams = default)
+    {
+        if (!NetworkManager.Singleton.ConnectedClients.TryGetValue(downedPlayerId, out var client)) return;
+
+        Player target = client.PlayerObject?.GetComponent<Player>();
+        if (target == null || !target.IsDown.Value || target.IsDead.Value)
+        {
+            return;
+        }
+
+        if (isBeingRevived)
+        {
+            if (!NetworkManager.Singleton.ConnectedClients.TryGetValue(rpcParams.Receive.SenderClientId, out var senderClient))
+            {
+                return;
+            }
+
+            Player sender = senderClient.PlayerObject?.GetComponent<Player>();
+            if (sender == null || sender.IsDead.Value || sender.IsDown.Value)
+            {
+                return;
+            }
+
+            if (Vector2.Distance(sender.transform.position, target.transform.position) > reviveInteractRange)
+            {
+                return;
+            }
+        }
+
+        target.IsBeingRevived.Value = isBeingRevived;
     }
 
     void PublishPosition()
@@ -802,6 +895,14 @@ public class Player : Character
         playerGuns = GetComponentsInChildren<Gun>(true);
         playerRenderers = GetComponentsInChildren<SpriteRenderer>(true);
         UpdateVisibilityState(); // Re-apply visual state to new gun
+
+        if (!IsOwner) return;
+
+        CrosshairController crosshairController = FindObjectOfType<CrosshairController>();
+        if (crosshairController != null)
+        {
+            crosshairController.ForceShowCrosshair();
+        }
     }
 
     [ClientRpc]
@@ -857,7 +958,54 @@ public class Player : Character
 
     private void OnDownStateChanged(bool previousValue, bool newValue)
     {
+        // If we transitioned to down (not down -> down)
+        if (previousValue == false && newValue == true)
+        {
+            if (SoundManager.Instance != null)
+            {
+                SoundManager.Instance.PlaySound(SoundType.PlayerDown, transform.position);
+            }
+        }
+        // If we transitioned from down -> not down, a revive completed
+        else if (previousValue == true && newValue == false)
+        {
+            if (SoundManager.Instance != null)
+            {
+                SoundManager.Instance.PlaySound(SoundType.ReviveComplete, transform.position);
+            }
+        }
+
         UpdateVisibilityState();
+    }
+
+    [ServerRpc]
+    private void PlayJumpSoundServerRpc(Vector3 worldPosition)
+    {
+        PlayJumpSoundClientRpc(worldPosition);
+    }
+
+    [ClientRpc]
+    private void PlayJumpSoundClientRpc(Vector3 worldPosition)
+    {
+        if (SoundManager.Instance != null)
+        {
+            SoundManager.Instance.PlaySound(SoundType.PlayerJump, worldPosition);
+        }
+    }
+
+    [ServerRpc]
+    private void PlayFootstepSoundServerRpc(Vector3 worldPosition)
+    {
+        PlayFootstepSoundClientRpc(worldPosition);
+    }
+
+    [ClientRpc]
+    private void PlayFootstepSoundClientRpc(Vector3 worldPosition)
+    {
+        if (SoundManager.Instance != null)
+        {
+            SoundManager.Instance.PlaySound(SoundType.Footstep, worldPosition);
+        }
     }
 
     private void UpdateReviveIcon()
@@ -886,6 +1034,12 @@ public class Player : Character
         Vector3 iconScale = reviveIconRenderer.transform.localScale;
         iconScale.x = Mathf.Abs(iconScale.x) * Mathf.Sign(transform.localScale.x);
         reviveIconRenderer.transform.localScale = iconScale;
+
+        if (IsBeingRevived.Value)
+        {
+            reviveIconRenderer.color = Color.green;
+            return;
+        }
 
         float safeDownDuration = Mathf.Max(0.01f, downDuration);
         float t = Mathf.InverseLerp(0f, safeDownDuration, DownTimerRemaining.Value);
@@ -1000,6 +1154,7 @@ public class Player : Character
             if (!IsDown.Value)
             {
                 IsDown.Value = true;
+                IsBeingRevived.Value = false;
                 downTimer = Mathf.Max(0.01f, downDuration); // Start down timer
                 DownTimerRemaining.Value = downTimer;
                 //Health.Value = 30f; // Give them some health to survive being down
@@ -1018,6 +1173,7 @@ public class Player : Character
         if (!IsDown.Value)
         {
             IsDown.Value = true;
+            IsBeingRevived.Value = false;
             downTimer = Mathf.Max(0.01f, downDuration);
             DownTimerRemaining.Value = downTimer;
             //Health.Value = 30f; // Survive as downed temporarily
@@ -1025,18 +1181,41 @@ public class Player : Character
         }
 
         IsDown.Value = false;
+        IsBeingRevived.Value = false;
         DownTimerRemaining.Value = 0f;
         base.Die();
     }
 
     [ServerRpc]
-    private void ReviveServerRpc(ulong downedPlayerId)
+    private void ReviveServerRpc(ulong downedPlayerId, ServerRpcParams rpcParams = default)
     {
         if (!NetworkManager.Singleton.ConnectedClients.TryGetValue(downedPlayerId, out var client)) return;
 
         Player p = client.PlayerObject?.GetComponent<Player>();
+        if (p == null || !p.IsDown.Value)
+        {
+            return;
+        }
+
+        if (!NetworkManager.Singleton.ConnectedClients.TryGetValue(rpcParams.Receive.SenderClientId, out var senderClient))
+        {
+            return;
+        }
+
+        Player sender = senderClient.PlayerObject?.GetComponent<Player>();
+        if (sender == null || sender.IsDead.Value || sender.IsDown.Value)
+        {
+            return;
+        }
+
+        if (Vector2.Distance(sender.transform.position, p.transform.position) > reviveInteractRange)
+        {
+            return;
+        }
+
         if (p != null && p.IsDown.Value)
         {
+            p.IsBeingRevived.Value = false;
             p.Health.Value = 50f; // Revive health
             p.IsDown.Value = false;
             p.DownTimerRemaining.Value = 0f;
@@ -1045,6 +1224,7 @@ public class Player : Character
 
     public override void ServerRespawn(Vector3 worldPosition)
     {
+        IsBeingRevived.Value = false;
         IsDown.Value = false;
         base.ServerRespawn(worldPosition);
         DownTimerRemaining.Value = 0f;

@@ -237,7 +237,7 @@ public abstract class Character : NetworkBehaviour
     }
 
     [ClientRpc]
-    private void PlayDeathSoundClientRpc(Vector3 worldPosition)
+    protected void PlayDeathSoundClientRpc(Vector3 worldPosition)
     {        // Don't play the sound again if the client already played it locally via prediction
         if (!gameObject.activeSelf && IsClient && !IsServer) return;
         if (SoundManager.Instance != null)

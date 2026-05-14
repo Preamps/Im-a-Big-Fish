@@ -1,5 +1,6 @@
 using UnityEngine;
 using Unity.Netcode;
+using System.Collections;
 using System.Collections.Generic;
 
 [RequireComponent(typeof(Rigidbody2D))]
@@ -34,6 +35,11 @@ public class Enemy : Character
     [SerializeField] private float obstacleCheckDistance = 0.25f;
     [SerializeField] private float obstacleCastInset = 0.03f;
     [SerializeField] private float obstacleSenseInterval = 0.1f;
+    [SerializeField] private float deathDespawnDelay = 2f;
+    [SerializeField] private Color corpseTintColor = Color.red;
+    [SerializeField] private float corpseKnockbackForce = 12f;
+    [SerializeField] private float corpseKnockbackUpward = 1.5f;
+    [SerializeField] private Sprite corpseSprite;
 
     public float damage;
     protected Transform targetPlayer;
@@ -57,6 +63,11 @@ public class Enemy : Character
     private float nextJumpTime;
     private bool cachedObstacleAhead;
     private bool hasCachedObstacleAhead;
+    private Coroutine despawnRoutine;
+    private Color baseSpriteColor = Color.white;
+    private float lastKnockbackTime;
+    private float knockbackDamping = 0.95f;
+    private Sprite baseSpriteImage;
     private NetworkVariable<Vector2> netPosition = new NetworkVariable<Vector2>(
         Vector2.zero,
         NetworkVariableReadPermission.Everyone,
@@ -108,6 +119,12 @@ public class Enemy : Character
         if (spriteRenderer == null)
         {
             spriteRenderer = GetComponentInChildren<SpriteRenderer>();
+        }
+
+        if (spriteRenderer != null)
+        {
+            baseSpriteColor = spriteRenderer.color;
+            baseSpriteImage = spriteRenderer.sprite;
         }
     }
 
@@ -177,6 +194,11 @@ public class Enemy : Character
     {
         if (IsServer) return;
 
+        if (IsDead.Value)
+        {
+            EnsureCorpseTint();
+        }
+
         float distance = Vector2.Distance(clientInterpolatedPosition, netPosition.Value);
 
         if (distance > 2f)
@@ -216,19 +238,26 @@ public class Enemy : Character
     {
         if (!IsServer) return;
 
-        // Skip physics/AI if dead (prevents server from moving "dead but not despawned" zombies)
-        if (Health.Value <= 0 || IsDead.Value) return;
+        bool isDead = Health.Value <= 0 || IsDead.Value;
+        if (isDead)
+        {
+            EnsureCorpseTint();
+            SyncNetworkState(false);
+            return;
+        }
 
         // Server: AI and physics logic only
         Move();
         TryDamagePlayerOverlap();
         bool isWalking = Mathf.Abs(rb.linearVelocity.x) > walkAnimThreshold;
 
-        // Server: Network synchronization
+        SyncNetworkState(isWalking);
+    }
+
+    private void SyncNetworkState(bool isWalking)
+    {
         Vector2 currentPosition = rb.position;
         bool currentFlipX = spriteRenderer != null && spriteRenderer.flipX;
-
-        // Remove threshold check to ensure continuous tracking, but only sync if position actually changed
         bool movedEnough = !hasSentState || Vector2.Distance(currentPosition, lastSentPosition) > 0.001f;
         bool stateChanged = !hasSentState || currentFlipX != lastSentFlipX || isWalking != lastSentIsWalking;
         bool isHeartbeatDue = Time.time >= nextNetworkHeartbeatTime;
@@ -251,7 +280,12 @@ public class Enemy : Character
 
     protected override void Die()
     {
-        if (IsServer && lastDamagerId != ulong.MaxValue)
+        if (!IsServer || IsDead.Value)
+        {
+            return;
+        }
+
+        if (lastDamagerId != ulong.MaxValue)
         {
             // Give money to the player who dealt the final damage
             if (NetworkManager.Singleton.ConnectedClients.TryGetValue(lastDamagerId, out var client))
@@ -261,22 +295,144 @@ public class Enemy : Character
                 {
                     player.Money.Value += killReward;
                     player.KillCount.Value += 1;
-
-                    BroadcastMoneyPickupSoundClientRpc(player.transform.position);
                 }
             }
         }
 
-        base.Die();
+        IsDead.Value = true;
+        PlayDeathSoundClientRpc(transform.position);
+
+        if (rb != null)
+        {
+            rb.linearVelocity = Vector2.zero;
+            rb.simulated = true;
+            rb.bodyType = RigidbodyType2D.Dynamic;
+            rb.interpolation = RigidbodyInterpolation2D.Interpolate;
+            netPosition.Value = rb.position;
+        }
+
+        netIsWalking.Value = false;
+        hasSentState = true;
+        lastSentIsWalking = false;
+        ApplyDeadState(true);
+        ApplyDeadStateClientRpc();
+        ApplyDeathKnockbackFromLastDamager();
+        lastKnockbackTime = Time.time;
+
+        if (despawnRoutine != null)
+        {
+            StopCoroutine(despawnRoutine);
+        }
+
+        despawnRoutine = StartCoroutine(DespawnAfterDelay());
+    }
+
+    private IEnumerator DespawnAfterDelay()
+    {
+        yield return new WaitForSeconds(Mathf.Max(0f, deathDespawnDelay));
+
+        NetworkObject netObj = GetComponent<NetworkObject>();
+        if (netObj != null && netObj.IsSpawned)
+        {
+            netObj.Despawn();
+        }
+    }
+
+    private void ApplyDeadState(bool isDead)
+    {
+        if (rb != null)
+        {
+            rb.linearVelocity = Vector2.zero;
+            if (isDead)
+            {
+                if (IsServer)
+                {
+                    rb.simulated = true;
+                    rb.bodyType = RigidbodyType2D.Dynamic;
+                    rb.interpolation = RigidbodyInterpolation2D.Interpolate;
+                }
+                else
+                {
+                    rb.simulated = false;
+                    rb.interpolation = RigidbodyInterpolation2D.None;
+                }
+            }
+        }
+
+        if (animator != null)
+        {
+            animator.enabled = !isDead;
+        }
+
+        if (spriteRenderer != null)
+        {
+            spriteRenderer.color = isDead ? corpseTintColor : baseSpriteColor;
+        }
+
+        if (spriteRenderer != null)
+        {
+            if (isDead && corpseSprite != null)
+            {
+                spriteRenderer.sprite = corpseSprite;
+            }
+            else if (!isDead)
+            {
+                spriteRenderer.sprite = baseSpriteImage;
+            }
+        }
+    }
+
+    private void EnsureCorpseTint()
+    {
+        if (spriteRenderer != null && spriteRenderer.color != corpseTintColor)
+        {
+            spriteRenderer.color = corpseTintColor;
+        }
+    }
+
+    public void KnockbackCorpse(Vector2 direction)
+    {
+        if (!IsServer || !IsDead.Value || rb == null) return;
+        if (direction.sqrMagnitude < 0.01f) return;
+
+        direction = direction.normalized;
+        Vector2 impulse = new Vector2(direction.x, Mathf.Max(direction.y, 0f) + corpseKnockbackUpward).normalized;
+        rb.linearVelocity = Vector2.zero;
+        rb.AddForce(impulse * Mathf.Max(0f, corpseKnockbackForce), ForceMode2D.Impulse);
+        lastKnockbackTime = Time.time;
+    }
+
+    private void ApplyDeathKnockbackFromLastDamager()
+    {
+        if (!IsServer || rb == null || !IsDead.Value)
+        {
+            return;
+        }
+
+        Vector2 knockbackDir = spriteRenderer != null && spriteRenderer.flipX ? Vector2.left : Vector2.right;
+
+        if (lastDamagerId != ulong.MaxValue &&
+            NetworkManager.Singleton != null &&
+            NetworkManager.Singleton.ConnectedClients.TryGetValue(lastDamagerId, out var killerClient))
+        {
+            Player killer = killerClient.PlayerObject != null ? killerClient.PlayerObject.GetComponent<Player>() : null;
+            if (killer != null)
+            {
+                Vector2 delta = (Vector2)(transform.position - killer.transform.position);
+                if (delta.sqrMagnitude > 0.0001f)
+                {
+                    knockbackDir = delta.normalized;
+                }
+            }
+        }
+
+        KnockbackCorpse(knockbackDir);
     }
 
     [ClientRpc]
-    private void BroadcastMoneyPickupSoundClientRpc(Vector3 playerPosition)
+    private void ApplyDeadStateClientRpc()
     {
-        if (SoundManager.Instance != null)
-        {
-            SoundManager.Instance.PlaySound(SoundType.MoneyPickup, playerPosition);
-        }
+        ApplyDeadState(true);
     }
 
     protected void FindTarget()
@@ -367,10 +523,12 @@ public class Enemy : Character
 
         if (obstacleAhead && !jumped)
         {
+            // Keep gentle forward pressure instead of fully braking to avoid getting stuck on obstacle corners.
+            float blockedMoveX = moveDirection * Speed * 0.35f;
             float newVelX = Mathf.MoveTowards(
                 rb.linearVelocity.x,
-                0f,
-                Mathf.Max(0f, deceleration) * Time.fixedDeltaTime
+                blockedMoveX,
+                Mathf.Max(0f, acceleration) * Time.fixedDeltaTime
             );
             rb.linearVelocity = new Vector2(newVelX, rb.linearVelocity.y);
             return;

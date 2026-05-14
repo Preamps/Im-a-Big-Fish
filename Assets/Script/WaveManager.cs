@@ -369,7 +369,7 @@ public class WaveManager : NetworkBehaviour
         if (SoundManager.Instance != null)
         {
             SoundManager.Instance.PlaySound(SoundType.WaveStart);
-            SoundManager.Instance.PlayMusic(SoundType.WaveMusic);
+            SoundManager.Instance.PlayMusic(SoundType.BackgroundMusic);
         }
     }
 

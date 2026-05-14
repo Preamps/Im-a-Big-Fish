@@ -7,6 +7,7 @@ using UnityEngine.SceneManagement;
 public class GameOverUI : MonoBehaviour
 {
     [SerializeField] private GameObject gameOverPanel;
+    [SerializeField] private GameObject escapeMenuPanel;
     [SerializeField] private TMP_Text waveText;
     [SerializeField] private TMP_Text timeText;
     [SerializeField] private TMP_Text playersMoneyText;
@@ -14,6 +15,7 @@ public class GameOverUI : MonoBehaviour
     private bool isGameOver = false;
     private bool hasGameStarted = false;
     private float gameStartTime = 0f;
+    private bool isEscapeMenuVisible = false;
 
     private void SaveLocalPlayerName()
     {
@@ -49,11 +51,23 @@ public class GameOverUI : MonoBehaviour
             }
             gameOverPanel.SetActive(false);
         }
+
+        if (escapeMenuPanel != null)
+        {
+            escapeMenuPanel.SetActive(false);
+        }
+
+        SetEscapeMenuVisible(false);
     }
 
     private void Update()
     {
-        if (isGameOver) return;
+        if (!isGameOver && Input.GetKeyDown(KeyCode.Escape))
+        {
+            ToggleEscapeMenu();
+        }
+
+        if (isGameOver || isEscapeMenuVisible) return;
 
         Player[] players = FindObjectsByType<Player>(FindObjectsInactive.Include, FindObjectsSortMode.None);
 
@@ -132,6 +146,24 @@ public class GameOverUI : MonoBehaviour
         }
     }
 
+    private void ToggleEscapeMenu()
+    {
+        SetEscapeMenuVisible(!isEscapeMenuVisible);
+    }
+
+    private void SetEscapeMenuVisible(bool visible)
+    {
+        isEscapeMenuVisible = visible;
+
+        if (escapeMenuPanel != null)
+        {
+            escapeMenuPanel.SetActive(visible);
+        }
+
+        Cursor.visible = visible;
+        Cursor.lockState = visible ? CursorLockMode.None : CursorLockMode.Confined;
+    }
+
     public void OnBackToMainMenuClicked()
     {
         SaveLocalPlayerName();
@@ -144,5 +176,26 @@ public class GameOverUI : MonoBehaviour
 
         // Load the Menu scene
         SceneManager.LoadScene("Menu");
+    }
+
+    public void OnAboutMenuClicked()
+    {
+        OnBackToMainMenuClicked();
+    }
+
+    public void OnExitClicked()
+    {
+        SaveLocalPlayerName();
+
+        if (NetworkManager.Singleton != null)
+        {
+            NetworkManager.Singleton.Shutdown();
+        }
+
+#if UNITY_EDITOR
+        UnityEditor.EditorApplication.isPlaying = false;
+#else
+        Application.Quit();
+#endif
     }
 }

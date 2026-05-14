@@ -39,4 +39,22 @@ public class LobbyMenuUI : MonoBehaviour
         // Load the Menu scene
         SceneManager.LoadScene("Menu");
     }
+
+    public void OnLeaveGameClicked()
+    {
+        SaveLocalPlayerName();
+
+        // Shut down the network connection first
+        if (NetworkManager.Singleton != null)
+        {
+            NetworkManager.Singleton.Shutdown();
+        }
+
+        // Quit the application in a build, stop Play Mode in the editor
+#if UNITY_EDITOR
+        UnityEditor.EditorApplication.isPlaying = false;
+#else
+        Application.Quit();
+#endif
+    }
 }
