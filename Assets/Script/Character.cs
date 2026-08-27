@@ -177,6 +177,24 @@ public abstract class Character : NetworkBehaviour
 
         Health.Value = Mathf.Max(0f, Health.Value - safeDamage);
 
+        // Award money to the shooter for damage dealt (1 money per 50 damage)
+        if (shooterId != ulong.MaxValue)
+        {
+            Player shooter = null;
+            foreach (var player in Player.ActivePlayers)
+            {
+                if (player != null && player.OwnerClientId == shooterId)
+                {
+                    shooter = player;
+                    break;
+                }
+            }
+            if (shooter != null)
+            {
+                shooter.RegisterDamageDealt(safeDamage);
+            }
+        }
+
         // Play damage sound for all clients
         PlayDamageSoundClientRpc(transform.position, SoundType.BulletHit);
 

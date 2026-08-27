@@ -211,11 +211,11 @@ MonoBehaviour:
   muzzleLightDuration: 0.08
   muzzleFlashChance: 0.8
   bulletSpeed: 25
-  bulletDamage: 18
+  bulletDamage: 22
   fireRate: 2.8
   holdToFire: 0
   bulletsPerShot: 8
-  spreadAngle: 40
+  spreadAngle: 38
   handAim: {fileID: 0}
   recoilAmount: 6
   maxActiveBulletsPerShooter: 32

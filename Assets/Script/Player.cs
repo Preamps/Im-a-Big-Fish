@@ -135,8 +135,29 @@ public class Player : Character
     private bool isSpawningVisualLock = false;
     private float reviveHoldTimer = 0f;
     private Player reviveHoldTarget;
+    private float accumulatedDamageDealt = 0f;
 
     public float ReviveHoldProgress => Mathf.Clamp01(reviveHoldTimer / Mathf.Max(0.01f, reviveHoldDuration));
+
+    /// <summary>
+    /// Called when this player deals damage to an enemy.
+    /// Tracks cumulative damage and rewards money for every 50 damage dealt.
+    /// </summary>
+    public void RegisterDamageDealt(float damageAmount)
+    {
+        if (!IsServer) return;
+        if (damageAmount <= 0) return;
+
+        accumulatedDamageDealt += damageAmount;
+
+        // Check if we've reached the threshold for money reward
+        if (accumulatedDamageDealt >= 50f)
+        {
+            int moneyToAdd = (int)(accumulatedDamageDealt / 50f);
+            accumulatedDamageDealt -= moneyToAdd * 50f; // Keep the remainder
+            Money.Value += moneyToAdd;
+        }
+    }
 
     private void Awake()
     {

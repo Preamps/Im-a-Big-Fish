@@ -210,7 +210,7 @@ MonoBehaviour:
   muzzleLightDuration: 0.08
   muzzleFlashChance: 0.8
   bulletSpeed: 55
-  bulletDamage: 140
+  bulletDamage: 320
   fireRate: 5.5
   holdToFire: 0
   bulletsPerShot: 1

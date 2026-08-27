@@ -7,6 +7,8 @@ public struct EnemySpawnConfig
 {
     public NetworkObject prefab;
     [Min(0f)] public float spawnWeight;
+    public bool useCustomHealthIncreasePerWave;
+    [Min(0f)] public float healthIncreasePerWave;
 }
 
 public class WaveManager : NetworkBehaviour
@@ -291,7 +293,21 @@ public class WaveManager : NetworkBehaviour
 
         if (enemyInstance.TryGetComponent<Enemy>(out Enemy enemy))
         {
-            enemy.ApplyWaveHealthBonus(CurrentWave.Value, enemyHealthIncreasePerWave);
+            float healthIncrease = enemyHealthIncreasePerWave;
+            for (int i = 0; i < enemyConfigs.Length; i++)
+            {
+                if (enemyConfigs[i].prefab == prefabToSpawn)
+                {
+                    if (enemyConfigs[i].useCustomHealthIncreasePerWave)
+                    {
+                        healthIncrease = enemyConfigs[i].healthIncreasePerWave;
+                    }
+
+                    break;
+                }
+            }
+
+            enemy.ApplyWaveHealthBonus(CurrentWave.Value, healthIncrease);
         }
 
         enemyInstance.Spawn(true);

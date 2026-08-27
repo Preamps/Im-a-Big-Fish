@@ -211,7 +211,7 @@ MonoBehaviour:
   muzzleLightDuration: 0.08
   muzzleFlashChance: 0.8
   bulletSpeed: 30
-  bulletDamage: 26
+  bulletDamage: 27
   fireRate: 8.2
   holdToFire: 1
   bulletsPerShot: 1
@@ -225,5 +225,8 @@ MonoBehaviour:
   reloadClip: {fileID: 8300000, guid: 1cfe76f6a6fb17844b8a93c07f1a190d, type: 3}
   gunFireVolume: 0.8
   reloadVolume: 0.5
+  gunFireTailClip: {fileID: 0}
+  gunFireTailVolume: 0.3
+  gunFireTailDelay: 0.01
   maxAmmo: 35
   reloadTime: 2

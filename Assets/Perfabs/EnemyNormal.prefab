@@ -157,7 +157,7 @@ MonoBehaviour:
   animator: {fileID: 8564480927898243787}
   spriteRenderer: {fileID: 7028087285763188524}
   spriteFacesRight: 0
-  touchDamage: 12
+  touchDamage: 8
   touchDamageInterval: 1.5
   killReward: 10
   jumpForce: 9
